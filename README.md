@@ -9,5 +9,14 @@
 - there's a middle step between the to ends, `intermidiate represntation (IR)` it will make it easy to target more platforms with less effort.(search : “control flow graph”, “static single-assignment”, “continuation-passing style”, and “three-address code”.)(didn't quite understand this step)
 - there's also `optimization` step, can be at `compile-time` or at `runtime`
 - `code Generation (code gen)` step converte the source code into a machine code(and then `the backend`? so what this step does exactly), we need to decide, do we need to target each cpu architucture(difficult) or make like imagenary cpu/machine `virtual machine` program that emulates the cpu that translate the `bytecode`(??) to machine code, the second one is heavy program(emulation) but you'll get simplicity and portability
+- types of impl `compilers`:
+    - `single-pass compilers` they skip some steps  
+    - `walk-tree interpreter` or `interpreter` they just scan and parse source code to AST with a bit of static analysis in order to run the program, they are meant for little languages, but it is slow
+    - `transcompilers` is translate your langauge into other langauge that have existing tooling (e.x C lang, or to target the web Javascript) so you don't have to write the backend
+    - `just-in-time JIT`
+- `compiler` is an implementation technique that involves transliting a lang source code into other low or high level form. the compiler won't execute the source code, the user need to get the resulting output and run it themselves
+- `interpreter` is an implementation technique that takes the source code and run it immediately (read one line and execute it immediately)
+- most scripting langauges get an interpreter and a compiler at some point
 # Resuources
-[crafting-interpreter book](https://craftinginterpreters.com) -> page 16(single pass compilers)
+[crafting-interpreter book](https://craftinginterpreters.com) -> chapter4
+
