@@ -1,35 +1,94 @@
-enum ScanErr {}
+#[derive(Clone, Debug)]
+pub enum ScanErr {
+    UnexpectedLexeme,
+}
 
 impl ScanErr {
-    pub fn report(&self) {
-        // TODO match self
-        println!("Error: found syntax error");
+    pub fn report(&self, line: usize) {
+        match self {
+            ScanErr::UnexpectedLexeme => eprintln!("Error: Unexpected lexeme at {line} line"),
+            _ => todo!(),
+        }
     }
 }
 
 pub struct Scanner {
     source: String,
-    // NOTE i think scan_token should have Result,
-    // Scanner should have available tokens
-    tokens: &[Token],
-    // NOTE those fields for lexemes
-    //start: usize,
-    //current: usize,
-    //line: usize,
+    // can be None when empty source, also when trying to construct Scanner
+    tokens: Vec<Result<Token, ScanErr>>,
+    line: usize,
 }
 
 impl Scanner {
     pub fn new(source: String) -> Self {
-        let token = Self::scan_tokens(&source);
-
-        Self { source, tokens }
+        Self {
+            source,
+            tokens: Vec::new(),
+            line: 1,
+        }
     }
 
-    fn scan_tokens() -> &[Token] {}
-    fn scan_token() -> Type {}
+    // NOTE scanning shouldn't take mutable reference, scanning =! writing
+    pub fn scan_tokens(&mut self) -> Vec<Result<Token, ScanErr>> {
+        let source = self.source.clone();
+        let source_lines = source.lines();
+
+        for (line_num, line) in source_lines.enumerate() {
+            let lexemes: Vec<&str> = line.split_whitespace().collect();
+            let some_token = self.scan_token(&lexemes, line_num + 1);
+
+            if let Some(_scan_err) = some_token {
+                return self.tokens.clone();
+            }
+
+            self.line = line_num;
+        }
+
+        self.tokens.push(Ok(Token {
+            token_type: TokenType::EOF,
+            lexeme: "".to_string(),
+            literal: "".to_string(),
+            line: self.line,
+        }));
+
+        return self.tokens.clone();
+    }
+
+    fn scan_token(&mut self, lexemes: &[&str], line_num: usize) -> Option<ScanErr> {
+        for lexeme in lexemes {
+            // NOTE maybe add a tokinazier method that i think the maining of it is will convert a lexeme into a token, or rename method with that name if true?
+            let token_type = match *lexeme {
+                "(" => TokenType::LEFT_PAREN,
+                ")" => TokenType::RIGHT_PAREN,
+                "{" => TokenType::LEFT_BRACE,
+                "}" => TokenType::RIGHT_BRACE,
+                "," => TokenType::COMMA,
+                "." => TokenType::DOT,
+                "+" => TokenType::PLUS,
+                "-" => TokenType::MINUS,
+                ";" => TokenType::SEMICOLON,
+                "*" => TokenType::ASTERISK,
+                _ => {
+                    self.tokens.push(Err(ScanErr::UnexpectedLexeme));
+                    return Some(ScanErr::UnexpectedLexeme);
+                }
+            };
+
+            let token = Token {
+                token_type,
+                lexeme: lexeme.to_string(),
+                literal: "".to_string(),
+                line: line_num,
+            };
+            self.tokens.push(Ok(token));
+        }
+
+        None
+    }
 }
 
-pub struct Type {
+#[derive(Clone, Debug)]
+pub struct Token {
     token_type: TokenType,
     lexeme: String,
     literal: String,
@@ -47,6 +106,7 @@ impl Token {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum TokenType {
     // Single-character tokens.
     LEFT_PAREN,
@@ -59,7 +119,7 @@ pub enum TokenType {
     PLUS,
     SEMICOLON,
     SLASH,
-    STAR,
+    ASTERISK,
 
     // One or two character tokens.
     BANG, // !
