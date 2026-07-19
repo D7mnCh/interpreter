@@ -40,7 +40,7 @@ fn run_prompt() {
 
 fn run(source: String) {
     let mut scanner = Scanner::new(source.clone());
-    let tokens = scanner.scan_tokens();
+    let tokens = scanner.tokenize();
 
     for token in tokens {
         match token {

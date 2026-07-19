@@ -28,62 +28,82 @@ impl Scanner {
         }
     }
 
-    // NOTE scanning shouldn't take mutable reference, scanning =! writing
-    pub fn scan_tokens(&mut self) -> Vec<Result<Token, ScanErr>> {
+    /*
+    TODO
+        - on every line, scan for tokens
+        - return Result<Token, ScanErr>
+        - should not take &self
+    */
+    fn scan_tokens(&self) -> Result<Token, ScanErr> {}
+
+    // TODO self.tokenize() should push result of self.scan_tokens()
+    pub fn tokenize(&mut self) -> Vec<Result<Token, ScanErr>> {
         let source = self.source.clone();
         let source_lines = source.lines();
 
         for (line_num, line) in source_lines.enumerate() {
+            let first_indx = 1;
+            // TODO don't whitespace "body" if found
+            if line.contains('\"') {
+                //handle string
+            }
+            // NOTE user can have long whitespaced, i don't know later how much that whitespace to converte "body"
+            //back with it again
             let lexemes: Vec<&str> = line.split_whitespace().collect();
-            let some_token = self.scan_token(&lexemes, line_num + 1);
+            for lexeme in lexemes.iter() {
+                let token_type = match *lexeme {
+                    "(" => TokenType::LeftParen,
+                    ")" => TokenType::RightParen,
+                    "{" => TokenType::LeftBracet,
+                    "}" => TokenType::RightBracet,
+                    "," => TokenType::Comma,
+                    "." => TokenType::Dot,
+                    "-" => TokenType::Minus,
+                    "+" => TokenType::Plus,
+                    "/" => TokenType::Slash,
+                    ";" => TokenType::Semicolon,
+                    "*" => TokenType::Asterisk,
+                    "=" => TokenType::Equal,
+                    "!" => TokenType::Bang,
+                    "!=" => TokenType::BangEqual,
+                    "==" => TokenType::EqualEqual,
+                    "//" => break,
+                    "\"" => {
+                        /*TODO
+                            - ingore lexemes from current ` " ` entil the the next ` " `
+                            - if didn't find the next ` " ` then return an error
+                            - bring back whitespace inside that string
+                        */
+                        todo!()
+                    }
 
-            if let Some(_scan_err) = some_token {
-                return self.tokens.clone();
+                    var if false => todo!("if can parse into an number then, it's a num type"),
+                    _ => {
+                        self.tokens.push(Err(ScanErr::UnexpectedLexeme));
+                        return self.tokens.clone();
+                    }
+                };
+
+                let token = Token {
+                    token_type,
+                    lexeme: lexeme.to_string(),
+                    literal: "".to_string(),
+                    line: line_num + first_indx,
+                };
+                self.tokens.push(Ok(token));
             }
 
-            self.line = line_num;
+            self.line = line_num + first_indx;
         }
 
         self.tokens.push(Ok(Token {
-            token_type: TokenType::EOF,
+            token_type: TokenType::Eof,
             lexeme: "".to_string(),
             literal: "".to_string(),
             line: self.line,
         }));
 
         return self.tokens.clone();
-    }
-
-    fn scan_token(&mut self, lexemes: &[&str], line_num: usize) -> Option<ScanErr> {
-        for lexeme in lexemes {
-            // NOTE maybe add a tokinazier method that i think the maining of it is will convert a lexeme into a token, or rename method with that name if true?
-            let token_type = match *lexeme {
-                "(" => TokenType::LEFT_PAREN,
-                ")" => TokenType::RIGHT_PAREN,
-                "{" => TokenType::LEFT_BRACE,
-                "}" => TokenType::RIGHT_BRACE,
-                "," => TokenType::COMMA,
-                "." => TokenType::DOT,
-                "+" => TokenType::PLUS,
-                "-" => TokenType::MINUS,
-                ";" => TokenType::SEMICOLON,
-                "*" => TokenType::ASTERISK,
-                _ => {
-                    self.tokens.push(Err(ScanErr::UnexpectedLexeme));
-                    return Some(ScanErr::UnexpectedLexeme);
-                }
-            };
-
-            let token = Token {
-                token_type,
-                lexeme: lexeme.to_string(),
-                literal: "".to_string(),
-                line: line_num,
-            };
-            self.tokens.push(Ok(token));
-        }
-
-        None
     }
 }
 
@@ -109,49 +129,50 @@ impl Token {
 #[derive(Clone, Debug)]
 pub enum TokenType {
     // Single-character tokens.
-    LEFT_PAREN,
-    RIGHT_PAREN,
-    LEFT_BRACE,
-    RIGHT_BRACE,
-    COMMA,
-    DOT,
-    MINUS,
-    PLUS,
-    SEMICOLON,
-    SLASH,
-    ASTERISK,
+    LeftParen,
+    RightParen,
+    LeftBracet,
+    RightBracet,
+    Comma,
+    Dot,
+    Minus,
+    Plus,
+    Semicolon,
+    Slash,
+    Asterisk,
 
-    // One or two character tokens.
-    BANG, // !
-    BANG_EQUAL,
-    EQUAL,
-    EQUAL_EQUAL,
-    GREATER,
-    GREATER_EQUAL,
-    LESS,
-    LESS_EQUAL,
+    // one or two character tokens.
+    Bang, // !
+    BangEqual,
+    Equal,
+    EqualEqual,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
 
-    // Literals.
-    IDENTIFIER,
-    STRING,
-    NUMBER,
+    // literals.
+    Identifier,
+    StringLiter,
+    // NOTE turn Number to Int and Float ?
+    Number,
 
-    // Keywords.
-    AND,
-    STRUCT,
-    ELSE,
-    FALSE,
-    FUNC,
-    FOR,
-    IF,
-    NULL,
-    OR,
-    PRINT,
-    RETURN,
-    SELF,
-    TRUE,
-    VAR,
-    WHILE,
+    // keywords.
+    And,
+    Struct,
+    Else,
+    False,
+    Func,
+    For,
+    If,
+    Null,
+    Or,
+    Print,
+    Return,
+    SelfKeyword,
+    True,
+    Var,
+    While,
 
-    EOF,
+    Eof,
 }
