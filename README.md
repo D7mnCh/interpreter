@@ -21,8 +21,9 @@
 # Implementing the interpreter
 ## Scanner/Lexing short for Lexical anaylsis
 - take the source code chars and turns it into `Lexemes`(words), and then categorize it to represent a meaningful thing to turn into a `token` that used for parsing(next step) 
+### Implementation
 # Resuources
-[crafting-interpreter book](https://craftinginterpreters.com) -> chapter4 (Recognizing Lexemes)
+[crafting-interpreter book](https://craftinginterpreters.com) -> chapter4 (Reserved words and identifier)
 
 # what i learn building this project beside interpreter/compilers concepts
 - when to have "&str" and "String" ?
