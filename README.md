@@ -27,3 +27,4 @@
 
 # what i learn building this project beside interpreter/compilers concepts
 - when to have "&str" and "String" ?
+- make it works first, then optimize it later (not always true, E.x. when you spam it your code base will be unreadble and unscalable)

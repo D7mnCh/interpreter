@@ -16,6 +16,10 @@ pub struct Scanner {
     source: String,
     // can be None when empty source, also when trying to construct Scanner
     tokens: Vec<Result<Token, ScanErr>>,
+    // start points to first char in start of the current lexeme
+    start: usize,
+    // current points to the current char of the current lexeme that being in scan
+    current: usize,
     line: usize,
 }
 
@@ -24,6 +28,8 @@ impl Scanner {
         Self {
             source,
             tokens: Vec::new(),
+            start: 0,
+            current: 0,
             line: 1,
         }
     }
@@ -41,35 +47,45 @@ impl Scanner {
     // TODO self.tokenize() should push result of self.scan_tokens()
     pub fn tokenize(&mut self) -> Vec<Result<Token, ScanErr>> {
         let source_lines = self.source.lines();
-        // NOTE very expansive clone, i don't wanna clone
-        let total_num_lines = source_lines.clone().count();
-        dbg!(total_num_lines);
 
-        // NOTE if range is x..x, it will not execute
-        for (line, line_num) in source_lines.zip(1..total_num_lines) {
+        for (line_num, line) in source_lines.enumerate() {
             //println!("found a line to iterate over chars");
-            for charac in line.chars() {
-                let token_type = match charac {
-                    '(' => TokenType::LeftParen,
-                    ')' => TokenType::RightParen,
-                    '{' => TokenType::LeftBracet,
-                    '}' => TokenType::RightBracet,
-                    ',' => TokenType::Comma,
-                    '.' => TokenType::Dot,
-                    '-' => TokenType::Minus,
-                    '+' => TokenType::Plus,
-                    '/' => TokenType::Slash,
-                    ';' => TokenType::Semicolon,
-                    '*' => TokenType::Asterisk,
+            while line.chars().next() != None {
+                let token_type = match line.chars().next() {
+                    Some('(') => TokenType::LeftParen,
+                    Some(')') => TokenType::RightParen,
+                    Some('{') => TokenType::LeftBracet,
+                    Some('}') => TokenType::RightBracet,
+                    Some(',') => TokenType::Comma,
+                    Some('.') => TokenType::Dot,
+                    Some(';') => TokenType::Semicolon,
+                    Some('*') => TokenType::Asterisk,
+                    Some('-') => TokenType::Minus,
+                    Some('+') => TokenType::Plus,
+                    // TODO check what the next char
+                    Some('/') => TokenType::Slash,
 
-                    // check after current char to give a token for  equal and negation
+                    // check after current char to give a token for equal and negation
                     //operators
                     // TODO
-                    '=' => TokenType::Equal,
-                    '!' => TokenType::Bang,
+                    Some('=') => {
+                        /* TODO
+                        - add start field (as chars ? -> line.chars().next() = self.current)
+                        - add current field (as chars ?)
+                        - add if is_reach_end method (maybe)
+                        */
+                        if next_char('=', '=') {
+                            TokenType::EqualEqual;
+                        } else {
+                            TokenType::Equal;
+                        }
+                    }
+                    Some('!') => TokenType::Bang,
+                    Some('>') => TokenType::Greater,
+                    Some('<') => TokenType::Less,
 
-                    '/' => todo!(),
-                    '\"' => {
+                    Some('/') => todo!(),
+                    Some('\"') => {
                         /*TODO
                             - ingore lexemes from current ` " ` entil the the next ` " `
                             - if didn't find the next ` " ` then return an error
@@ -91,9 +107,11 @@ impl Scanner {
                     line: line_num,
                 };
                 self.tokens.push(Ok(token));
+
+                line.chars().next();
             }
 
-            self.line = line_num;
+            self.line += line_num;
         }
 
         self.tokens.push(Ok(Token {
@@ -104,6 +122,12 @@ impl Scanner {
         }));
 
         return self.tokens.clone();
+    }
+
+    fn next_char(current: char, next: char) -> bool {
+        if current != next {
+            false
+        }
     }
 }
 
