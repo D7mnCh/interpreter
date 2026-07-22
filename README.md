@@ -1,4 +1,9 @@
 # Overview on what i'm going to build
+> [!NOTE]
+>rlox support only Ascii chars
+>
+>this might help https://youtu.be/_mZBa3sqTrI
+
 - there's several paths to build a interpreter or to interprete your program
 - steps to build an interpreter from raw text are : 
     - `scanner/lexer/lexical analysis step` gonna turns the chars on the text-file and chunk them together into words (in programming they called `lexemes`), lexemes can be a char "(", or word "foo", or literals like nums or strings, some chars get ignored like comments and whitespaces, leaving meaningful tokens, example: "var average = (min + max) / 2;" turns into -> "var" "average" "=" "(" "min" "max" ")" "/" "2" ";"
@@ -26,5 +31,9 @@
 [crafting-interpreter book](https://craftinginterpreters.com) -> chapter4 (Reserved words and identifier)
 
 # what i learn building this project beside interpreter/compilers concepts
-- when to have "&str" and "String" ?
 - make it works first, then optimize it later (not always true, E.x. when you spam it your code base will be unreadble and unscalable)
+
+- when to have "&str" and "String" ?(search)
+- call self, &self when
+    - self ?(search)
+    - &self when you want just a view/read over the instance
