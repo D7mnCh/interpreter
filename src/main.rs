@@ -9,7 +9,7 @@ use std::{
 fn main() -> Result<()> {
     let args: Vec<_> = env::args().collect();
     if args.len() == 1 {
-        println!("Usage: rlox [script.rlox]");
+        println!("Usage: rlox file.rlox");
     } else if args.len() == 2 {
         let source = fs::read_to_string(args[1].clone())?;
         run_file(source);
@@ -39,7 +39,8 @@ fn run_prompt() {
 }
 
 fn run(source: String) {
-    let mut scanner = Scanner::new(source.clone());
+    let source_as_chars = &source.chars().collect::<Vec<char>>();
+    let mut scanner = Scanner::new(&source_as_chars);
     let tokens = scanner.tokenize();
 
     for token in tokens {

@@ -1,6 +1,7 @@
 #[derive(Clone, Debug)]
 pub enum ScanErr {
     UnexpectedLexeme,
+    FileEmpty,
 }
 
 impl ScanErr {
@@ -12,97 +13,75 @@ impl ScanErr {
     }
 }
 
-pub struct Scanner {
-    // TODO store source as Vec<char>
-    source: Vec<char>,
+pub struct Scanner<'a> {
+    // for source field, i tried using &str instead of &str, i face a problem where if lexemes is
+    //compacted together like var=10, how you are going to tokenize it ?
+    source_as_chars: &'a [char], // view
     tokens: Vec<Result<Token, ScanErr>>,
-    // start points to first char in start of the current lexeme
-    start_lexeme_indx: usize,
-    // current points to the current char of the current lexeme that being in scan
-    current_char_indx: usize,
+    start_lexeme_indx: usize, // depend on column_indx
+    column_indx: usize,
     line: usize,
 }
 
-impl Scanner {
-    pub fn new(source: String) -> Self {
+impl<'a> Scanner<'a> {
+    pub fn new(source_as_chars: &'a [char]) -> Self {
         Self {
-            source: source.chars().collect(),
+            source_as_chars,
             tokens: Vec::new(),
             start_lexeme_indx: 0,
-            current_char_indx: 0,
+            column_indx: 0,
             line: 1,
         }
     }
 
-    /*
-    TODO
-        - scan for tokens
-        - return Result<Token, ScanErr>, you will add token on tokenize() cuz it will take
-        &mut self
-        - take &self
-    */
-    fn scan_tokens(&self) -> Result<TokenType, ScanErr> {
-        let source_as_chars = self.source.chars();
-        let charac = source_as_chars.nth(self.current_char_indx);
-        return match charac {
-            Some('(') => Ok(TokenType::LeftParen),
-            Some(')') => Ok(TokenType::RightParen),
-            Some('{') => Ok(TokenType::LeftBracet),
-            Some('}') => Ok(TokenType::RightBracet),
-            Some(',') => Ok(TokenType::Comma),
-            Some('.') => Ok(TokenType::Dot),
-            Some(';') => Ok(TokenType::Semicolon),
-            Some('*') => Ok(TokenType::Asterisk),
-            Some('-') => Ok(TokenType::Minus),
-            Some('+') => Ok(TokenType::Plus),
-            // TODO check what is the next char
-            Some('/') => Ok(TokenType::Slash),
+    // NOTE don't like to have &mut self
+    fn scan_tokens(&mut self) -> Result<TokenType, ScanErr> {
+        let character = self.next_char()?;
 
-            // check after current char to give a token for equal and negation
-            //operators
-            Some('=') => {
-                if self.match_next_char('=') {
+        return match character {
+            '(' => Ok(TokenType::LeftParen),
+            ')' => Ok(TokenType::RightParen),
+            //'{' => Ok(TokenType::LeftBracet),
+            //'}' => Ok(TokenType::RightBracet),
+            ',' => Ok(TokenType::Comma),
+            '.' => Ok(TokenType::Dot),
+            ';' => Ok(TokenType::Semicolon),
+            '*' => Ok(TokenType::Asterisk),
+            '-' => Ok(TokenType::Minus),
+            '+' => Ok(TokenType::Plus),
+
+            '=' => {
+                if self.match_char('=')? {
                     Ok(TokenType::EqualEqual)
                 } else {
                     Ok(TokenType::Equal)
                 }
             }
-            Some('!') => Ok(TokenType::Bang),
-            Some('>') => Ok(TokenType::Greater),
-            Some('<') => Ok(TokenType::Less),
-            Some('/') => todo!(),
-            Some('\"') => {
-                /*TODO
-                    - ingore lexemes from current ` " ` entil the the next ` " `
-                    - if didn't find the next ` " ` then return an error
-                    - bring back whitespace inside that string
-                */
-                todo!()
-            }
-
+            '!' => Ok(TokenType::Bang),
+            '>' => Ok(TokenType::Greater),
+            '<' => Ok(TokenType::Less),
+            //'/' => ,
+            //'\"'=> ,
             _ => Err(ScanErr::UnexpectedLexeme),
         };
-        //todo!()
     }
 
-    fn is_at_end(&self) -> bool {
-        self.current_char_indx >= self.source.chars().count()
+    fn is_eof(&self) -> bool {
+        self.column_indx >= self.source_as_chars.len() // how this works ?
     }
 
-    // Note self.tokenize() should push result of self.scan_tokens()
+    // NOTE should have self.tokenize(&mut self) should push result of
+    //self.scan_tokens(&self) and not the latter cuz used only for scan(no mutation)
     pub fn tokenize(&mut self) -> Vec<Result<Token, ScanErr>> {
-        while !self.is_at_end() {
-            self.start_lexeme_indx = self.current_char_indx;
+        while !self.is_eof() {
+            self.start_lexeme_indx = self.column_indx;
             let token_type = self.scan_tokens().unwrap();
-            // TODO match token_type
+            // TODO match token_type to handle errors(used unwrap()above)
 
-            let token = Token {
-                token_type,
-                lexeme: "".to_string(),
-                literal: "".to_string(),
-                line: self.line,
-            };
+            let token = Token::new(token_type, "".to_string(), "".to_string(), self.line);
             self.tokens.push(Ok(token));
+
+            //self.advance_scanning_by_char();
         }
 
         self.tokens.push(Ok(Token {
@@ -112,16 +91,36 @@ impl Scanner {
             line: self.line,
         }));
 
-        return self.tokens.clone();
+        return self.tokens.clone(); // to visualize/debugging
     }
 
-    fn match_next_char(&self, next: char) -> bool {
-        let source_as_chars = self.source.chars();
-        // NOTE nth will take &mut, and i don't want that
-        if source_as_chars.nth(self.current_char_indx) != Some(next) {
-            return false;
+    // returning Result<char,E> where char is current character before increament comumn_indx
+    fn next_char(&mut self) -> Result<char, ScanErr> {
+        let Some(character) = self.source_as_chars.get(self.column_indx) else {
+            return Err(ScanErr::FileEmpty);
+        };
+        self.column_indx += 1;
+
+        Ok(*character)
+    }
+
+    fn match_char(&mut self, expected: char) -> Result<bool, ScanErr> {
+        if self.is_eof() {
+            return Ok(false);
         }
-        true
+
+        match self.source_as_chars.get(self.column_indx) {
+            Some(character) => {
+                if *character != expected {
+                    return Ok(false);
+                }
+            }
+            None => return Err(ScanErr::FileEmpty),
+        }
+
+        self.column_indx += 1;
+
+        Ok(true)
     }
 }
 
@@ -129,7 +128,7 @@ impl Scanner {
 pub struct Token {
     token_type: TokenType,
     lexeme: String,
-    literal: String,
+    literal: String, // NOTE i think stands for the value of the token if any
     line: usize,
 }
 
@@ -149,8 +148,6 @@ pub enum TokenType {
     // Single-character tokens.
     LeftParen,
     RightParen,
-    LeftBracet,
-    RightBracet,
     Comma,
     Dot,
     Minus,
@@ -160,7 +157,7 @@ pub enum TokenType {
     Asterisk,
 
     // one or two character tokens.
-    Bang, // !
+    Bang, // -> !
     BangEqual,
     Equal,
     EqualEqual,
@@ -172,10 +169,13 @@ pub enum TokenType {
     // literals.
     Identifier,
     StringLiter,
-    // NOTE turn Number to Int and Float ?
+    // NOTE turn Number into an Int and Float ?
     Number,
 
     // keywords.
+    Then,
+    End,
+    Do,
     And,
     Struct,
     Else,
@@ -192,5 +192,5 @@ pub enum TokenType {
     Var,
     While,
 
-    Eof,
+    Eof, // needed
 }
