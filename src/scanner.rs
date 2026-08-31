@@ -1,13 +1,13 @@
 #[derive(Clone, Debug)]
-pub enum ScanErr {
+pub enum ScanError {
     UnexpectedLexeme,
     FileEmpty,
 }
 
-impl ScanErr {
+impl ScanError {
     pub fn report(&self, line: usize) {
         match self {
-            ScanErr::UnexpectedLexeme => eprintln!("Error: Unexpected lexeme at {line} line"),
+            ScanError::UnexpectedLexeme => eprintln!("Error: Unexpected lexeme at {line} line"),
             _ => todo!(),
         }
     }
@@ -17,9 +17,9 @@ pub struct Scanner<'a> {
     // for source field, i tried using &str instead of &str, i face a problem where if lexemes is
     //compacted together like var=10, how you are going to tokenize it ?
     source_as_chars: &'a [char], // view
-    tokens: Vec<Result<Token, ScanErr>>,
-    start_lexeme_indx: usize, // depend on column_indx
-    column_indx: usize,
+    tokens: Vec<Result<Token, ScanError>>,
+    start_lexeme_indx: usize, // depend on current_char_indx
+    current_char_indx: usize,
     line: usize,
 }
 
@@ -29,15 +29,14 @@ impl<'a> Scanner<'a> {
             source_as_chars,
             tokens: Vec::new(),
             start_lexeme_indx: 0,
-            column_indx: 0,
+            current_char_indx: 0,
             line: 1,
         }
     }
 
     // NOTE don't like to have &mut self
-    fn scan_tokens(&mut self) -> Result<TokenType, ScanErr> {
+    fn scan_tokens(&mut self) -> Result<TokenType, ScanError> {
         let character = self.next_char()?;
-
         return match character {
             '(' => Ok(TokenType::LeftParen),
             ')' => Ok(TokenType::RightParen),
@@ -62,30 +61,59 @@ impl<'a> Scanner<'a> {
             '<' => Ok(TokenType::Less),
             //'/' => ,
             //'\"'=> ,
-            _ => Err(ScanErr::UnexpectedLexeme),
+            _ => Err(ScanError::UnexpectedLexeme),
         };
     }
 
+    // returning Result<char,E> where char is current character before increament comumn_indx
+    fn next_char(&mut self) -> Result<char, ScanError> {
+        let Some(character) = self.source_as_chars.get(self.current_char_indx) else {
+            return Err(ScanError::FileEmpty);
+        };
+        self.current_char_indx += 1;
+
+        Ok(*character)
+    }
+
+    fn match_char(&mut self, expected: char) -> Result<bool, ScanError> {
+        if self.is_eof() {
+            return Ok(false);
+        }
+
+        match self.source_as_chars.get(self.current_char_indx) {
+            Some(character) => {
+                if *character != expected {
+                    return Ok(false);
+                }
+            }
+            None => return Err(ScanError::FileEmpty),
+        }
+
+        self.current_char_indx += 1;
+
+        Ok(true)
+    }
+
     fn is_eof(&self) -> bool {
-        self.column_indx >= self.source_as_chars.len() // how this works ?
+        self.current_char_indx >= self.source_as_chars.len()
     }
 
     // NOTE should have self.tokenize(&mut self) should push result of
     //self.scan_tokens(&self) and not the latter cuz used only for scan(no mutation)
-    pub fn tokenize(&mut self) -> Vec<Result<Token, ScanErr>> {
+    pub fn tokenize(&mut self) -> Vec<Result<Token, ScanError>> {
         while !self.is_eof() {
-            self.start_lexeme_indx = self.column_indx;
-            let token_type = self.scan_tokens().unwrap();
-            // TODO match token_type to handle errors(used unwrap()above)
+            self.start_lexeme_indx = self.current_char_indx;
+            let token_type = self.scan_tokens().ok();
+            let lexeme = self.source_as_chars[self.start_lexeme_indx..self.current_char_indx]
+                .iter()
+                .collect::<String>();
 
-            let token = Token::new(token_type, "".to_string(), "".to_string(), self.line);
+            let token = Token::new(token_type, lexeme, "".to_string(), self.line);
             self.tokens.push(Ok(token));
-
-            //self.advance_scanning_by_char();
         }
 
         self.tokens.push(Ok(Token {
-            token_type: TokenType::Eof,
+            token_type: Some(TokenType::Eof), // NOTE Eof is not a token
             lexeme: "".to_string(),
             literal: "".to_string(),
             line: self.line,
@@ -93,47 +121,24 @@ impl<'a> Scanner<'a> {
 
         return self.tokens.clone(); // to visualize/debugging
     }
-
-    // returning Result<char,E> where char is current character before increament comumn_indx
-    fn next_char(&mut self) -> Result<char, ScanErr> {
-        let Some(character) = self.source_as_chars.get(self.column_indx) else {
-            return Err(ScanErr::FileEmpty);
-        };
-        self.column_indx += 1;
-
-        Ok(*character)
-    }
-
-    fn match_char(&mut self, expected: char) -> Result<bool, ScanErr> {
-        if self.is_eof() {
-            return Ok(false);
-        }
-
-        match self.source_as_chars.get(self.column_indx) {
-            Some(character) => {
-                if *character != expected {
-                    return Ok(false);
-                }
-            }
-            None => return Err(ScanErr::FileEmpty),
-        }
-
-        self.column_indx += 1;
-
-        Ok(true)
-    }
 }
 
 #[derive(Clone, Debug)]
+// token == valid word
 pub struct Token {
-    token_type: TokenType,
+    token_type: Option<TokenType>,
     lexeme: String,
     literal: String, // NOTE i think stands for the value of the token if any
     line: usize,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, lexeme: String, literal: String, line: usize) -> Self {
+    pub fn new(
+        token_type: Option<TokenType>,
+        lexeme: String,
+        literal: String,
+        line: usize,
+    ) -> Self {
         Self {
             token_type,
             lexeme,
