@@ -44,9 +44,6 @@ fn run(source: String) {
     let tokens = scanner.tokenize();
 
     for token in tokens {
-        match token {
-            Ok(token) => println!("{token:?}"),
-            Err(err) => println!("{err:?}"),
-        }
+        println!("{token:?}");
     }
 }

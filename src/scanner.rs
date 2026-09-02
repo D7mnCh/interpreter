@@ -17,7 +17,7 @@ pub struct Scanner<'a> {
     // for source field, i tried using &str instead of &str, i face a problem where if lexemes is
     //compacted together like var=10, how you are going to tokenize it ?
     source_as_chars: &'a [char], // view
-    tokens: Vec<Result<Token, ScanError>>,
+    tokens: Vec<Token>,
     start_lexeme_indx: usize, // depend on current_char_indx
     current_char_indx: usize,
     line: usize,
@@ -131,7 +131,7 @@ impl<'a> Scanner<'a> {
 
     // NOTE should have self.tokenize(&mut self) should push result of
     //self.scan_tokens(&self) and not the latter cuz used only for scan(no mutation)
-    pub fn tokenize(&mut self) -> Vec<Result<Token, ScanError>> {
+    pub fn tokenize(&mut self) -> Vec<Token> {
         while !self.is_eof() {
             self.start_lexeme_indx = self.current_char_indx;
             // if token_type is None, that None can be valid tokens but redandant
@@ -148,15 +148,8 @@ impl<'a> Scanner<'a> {
                 .collect::<String>();
 
             let token = Token::new(token_type, lexeme, "".to_string(), self.line);
-            self.tokens.push(Ok(token));
+            self.tokens.push(token);
         }
-
-        self.tokens.push(Ok(Token {
-            token_type: Some(TokenType::Eof), // NOTE Eof is not a token
-            lexeme: "".to_string(),
-            literal: "".to_string(),
-            line: self.line,
-        }));
 
         return self.tokens.clone(); // to visualize/debugging
     }
@@ -235,6 +228,4 @@ pub enum TokenType {
     True,
     Var,
     While,
-
-    Eof, // needed
 }
