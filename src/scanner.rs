@@ -1,14 +1,14 @@
 #[derive(Clone, Debug)]
 pub enum ScanError {
     UnexpectedLexeme,
-    FileEmpty,
 }
 
 impl ScanError {
     pub fn report(&self, line: usize) {
         match self {
-            ScanError::UnexpectedLexeme => eprintln!("Error: Unexpected lexeme at {line} line"),
-            _ => todo!(),
+            ScanError::UnexpectedLexeme => {
+                eprintln!("[Scan Error]: Unexpected lexeme at line: {line}")
+            }
         }
     }
 }
@@ -35,63 +35,94 @@ impl<'a> Scanner<'a> {
     }
 
     // NOTE don't like to have &mut self
-    fn scan_tokens(&mut self) -> Result<TokenType, ScanError> {
-        let character = self.next_char()?;
+    // &mut needed to mute self.current_char_indx
+    fn scan_tokens(&mut self) -> Result<Option<TokenType>, ScanError> {
+        let character = self.next_char();
         return match character {
-            '(' => Ok(TokenType::LeftParen),
-            ')' => Ok(TokenType::RightParen),
-            //'{' => Ok(TokenType::LeftBracet),
-            //'}' => Ok(TokenType::RightBracet),
-            ',' => Ok(TokenType::Comma),
-            '.' => Ok(TokenType::Dot),
-            ';' => Ok(TokenType::Semicolon),
-            '*' => Ok(TokenType::Asterisk),
-            '-' => Ok(TokenType::Minus),
-            '+' => Ok(TokenType::Plus),
+            '(' => Ok(Some(TokenType::LeftParen)),
+            ')' => Ok(Some(TokenType::RightParen)),
+            //'{' => Ok(Some(TokenType::LeftBracet)),
+            //'}' => Ok(Some(TokenType::RightBracet)),
+            ',' => Ok(Some(TokenType::Comma)),
+            '.' => Ok(Some(TokenType::Dot)),
+            ';' => Ok(Some(TokenType::Semicolon)),
+            '*' => Ok(Some(TokenType::Asterisk)),
+            '-' => Ok(Some(TokenType::Minus)),
+            '+' => Ok(Some(TokenType::Plus)),
 
             '=' => {
-                if self.match_char('=')? {
-                    Ok(TokenType::EqualEqual)
+                if self.match_char('=') {
+                    Ok(Some(TokenType::EqualEqual))
                 } else {
-                    Ok(TokenType::Equal)
+                    Ok(Some(TokenType::Equal))
                 }
             }
-            '!' => Ok(TokenType::Bang),
-            '>' => Ok(TokenType::Greater),
-            '<' => Ok(TokenType::Less),
-            //'/' => ,
-            //'\"'=> ,
+            '!' => {
+                if self.match_char('=') {
+                    Ok(Some(TokenType::BangEqual))
+                } else {
+                    Ok(Some(TokenType::Bang))
+                }
+            }
+            '>' => {
+                if self.match_char('=') {
+                    Ok(Some(TokenType::GreaterEqual))
+                } else {
+                    Ok(Some(TokenType::Greater))
+                }
+            }
+            '<' => {
+                if self.match_char('=') {
+                    Ok(Some(TokenType::LessEqual))
+                } else {
+                    Ok(Some(TokenType::Less))
+                }
+            }
+            '/' => {
+                if !self.match_char('/') {
+                    return Ok(Some(TokenType::Slash));
+                }
+                while self.peek_current() != '\n' {
+                    let _ = self.next_char();
+                }
+                Ok(None)
+            }
+            ' ' | '\r' | '\t' => Ok(None),
+            '\n' => {
+                self.line += 1;
+                Ok(None)
+            }
             _ => Err(ScanError::UnexpectedLexeme),
         };
     }
 
-    // returning Result<char,E> where char is current character before increament comumn_indx
-    fn next_char(&mut self) -> Result<char, ScanError> {
-        let Some(character) = self.source_as_chars.get(self.current_char_indx) else {
-            return Err(ScanError::FileEmpty);
-        };
-        self.current_char_indx += 1;
-
-        Ok(*character)
+    // peek will not consume/increment current char/char index like next_char
+    fn peek_current(&self) -> char {
+        // NOTE if unwrap get error => out of bound index
+        return *self.source_as_chars.get(self.current_char_indx).unwrap();
     }
 
-    fn match_char(&mut self, expected: char) -> Result<bool, ScanError> {
+    // the char is the current character before increament comumn_indx
+    fn next_char(&mut self) -> char {
+        let character = self.source_as_chars.get(self.current_char_indx).unwrap();
+        self.current_char_indx += 1;
+
+        *character
+    }
+
+    fn match_char(&mut self, expected: char) -> bool {
         if self.is_eof() {
-            return Ok(false);
+            return false;
         }
 
-        match self.source_as_chars.get(self.current_char_indx) {
-            Some(character) => {
-                if *character != expected {
-                    return Ok(false);
-                }
-            }
-            None => return Err(ScanError::FileEmpty),
+        let character = self.source_as_chars.get(self.current_char_indx).unwrap();
+        if *character != expected {
+            return false;
         }
 
         self.current_char_indx += 1;
 
-        Ok(true)
+        true
     }
 
     fn is_eof(&self) -> bool {
@@ -103,7 +134,15 @@ impl<'a> Scanner<'a> {
     pub fn tokenize(&mut self) -> Vec<Result<Token, ScanError>> {
         while !self.is_eof() {
             self.start_lexeme_indx = self.current_char_indx;
-            let token_type = self.scan_tokens().ok();
+            // if token_type is None, that None can be valid tokens but redandant
+            //(e.g commits, whitespaces), or it can be ScanError(e.g  @#$@#$)
+            let token_type = match self.scan_tokens() {
+                Ok(token_kind) => token_kind,
+                Err(scan_error) => {
+                    scan_error.report(self.line);
+                    None
+                }
+            };
             let lexeme = self.source_as_chars[self.start_lexeme_indx..self.current_char_indx]
                 .iter()
                 .collect::<String>();
@@ -124,7 +163,7 @@ impl<'a> Scanner<'a> {
 }
 
 #[derive(Clone, Debug)]
-// token == valid word
+// token == valid word(lexeme)
 pub struct Token {
     token_type: Option<TokenType>,
     lexeme: String,
