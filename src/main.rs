@@ -5,16 +5,18 @@ use std::{
     env, fs,
     io::{self, Result},
 };
-// TODO i must add logging
+
 fn main() -> Result<()> {
     let args: Vec<_> = env::args().collect();
     if args.len() == 1 {
-        println!("Usage: rlox file.rlox");
-    } else if args.len() == 2 {
-        let source = fs::read_to_string(args[1].clone())?;
-        run_file(source);
-    } else {
         run_prompt();
+    } else if args.len() == 2 {
+        if args[1] == "--help" {
+            println!("Usage: rlox file.rlox");
+        } else {
+            let source = fs::read_to_string(args[1].clone())?;
+            run_file(source);
+        }
     }
     Ok(())
 }
@@ -41,9 +43,13 @@ fn run_prompt() {
 fn run(source: String) {
     let source_as_chars = &source.chars().collect::<Vec<char>>();
     let mut scanner = Scanner::new(&source_as_chars);
+
     let tokens = scanner.tokenize();
 
-    for token in tokens {
-        println!("{token:?}");
+    for token in tokens.into_iter() {
+        // show only valid tokens
+        if let Some(ref _ty) = token.token_type {
+            println!("{token:?}");
+        }
     }
 }

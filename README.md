@@ -1,8 +1,6 @@
 # Overview on what i'm going to build
 > [!NOTE]
->rlox support only Ascii chars
->
->this might help https://youtu.be/_mZBa3sqTrI
+> the overview will not include rust speicifc info(you'll find it in the source code if so), maybe i'll change that in the future :)
 
 - there's several paths to build a interpreter or to interprete your program
 - steps to build an interpreter from raw text are : 
@@ -28,4 +26,4 @@
 - take the source code chars and turns it into `Lexemes`(words), and then categorize it to represent a meaningful thing to turn into a `token` that used for parsing(next step) 
     - e.g of a lexeme is "(" that turns into a token "LeftParen"
 # Resuources
-[crafting-interpreter book](https://craftinginterpreters.com) -> chapter4 (Reserved words and identifier)
+[crafting-interpreter book](https://craftinginterpreters.com) -> chapter4 (String literals)
