@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 #[derive(Clone, Debug)]
 pub enum ScanError {
     UnexpectedLexeme,
-    UnterminatedString
+    UnterminatedString,
+    ExpectedDigit,
 }
 
 impl ScanError {
@@ -9,11 +12,13 @@ impl ScanError {
         match self {
             ScanError::UnexpectedLexeme => {
                 eprintln!("[Scan Error]: Unexpected lexeme at line: {line}")
-            },
-	    ScanError::UnterminatedString => {
+            }
+            ScanError::UnterminatedString => {
                 eprintln!("[Scan Error]: Unterminated string")
             }
-
+            ScanError::ExpectedDigit => {
+                eprintln!("[Scan Error]: Expected digit")
+            }
         }
     }
 }
@@ -83,12 +88,10 @@ impl<'a> Scanner<'a> {
                     Ok(Some(TokenType::Less))
                 }
             }
-	    '"' => {
-		match self.handle_string_literal_scanning() {
-		    Ok(token_type) => Ok(Some(token_type)),
-		    Err(scan_error) => Err(scan_error),
-		}
-	    },
+            '"' => match self.handle_string_literal_scanning() {
+                Ok(token_type) => Ok(Some(token_type)),
+                Err(scan_error) => Err(scan_error),
+            },
             '/' => {
                 if !self.match_char('/') {
                     return Ok(Some(TokenType::Slash));
@@ -103,45 +106,144 @@ impl<'a> Scanner<'a> {
                 self.line += 1;
                 Ok(None)
             }
-            _ => Err(ScanError::UnexpectedLexeme),
+
+            // handle numbers and identifiers
+            _ => {
+                // handle numbers
+                if self.peek_current().is_numeric() {
+                    match self.handle_number_scanning() {
+                        Ok(token_type) => Ok(Some(token_type)),
+                        Err(scan_error) => Err(scan_error),
+                    }
+                } else if self.peek_current().is_alphabetic() {
+                    match self.handle_identifiers() {
+                        Ok(token_type) => Ok(Some(token_type)),
+                        Err(scan_error) => Err(scan_error),
+                    }
+                } else {
+                    Err(ScanError::UnexpectedLexeme)
+                }
+            }
         };
     }
 
-    fn handle_string_literal_scanning(&mut self) -> Result<TokenType, ScanError> {
-	while self.peek_current() != '"' {
-	    // support for multiline
-	    if self.peek_current() == '\n' {
-		self.line += 1;
-	    }
-	    let _ = self.next_char();
-	}
+    // NOTE didn't handle any scan errors
+    fn handle_identifiers(&mut self) -> Result<TokenType, ScanError> {
+        // whitespaces are not considered as alphabetic
+        while self.peek_current().is_alphabetic() {
+            let _ = self.next_char();
+        }
 
-	if self.is_eof() {
-	    return Err(ScanError::UnterminatedString);
-	}
+        let lexeme: String = self.source_as_chars[self.start_lexeme_indx..self.current_char_indx]
+            .iter()
+            .collect();
 
-	// the closing "
-	let _ = self.next_char();
-	
-	Ok(TokenType::StringLiter)
+        let keywords: HashMap<String, TokenType> = HashMap::from([
+            ("then".to_string(), TokenType::Then),
+            ("end".to_string(), TokenType::End),
+            ("do".to_string(), TokenType::Do),
+            ("and".to_string(), TokenType::And),
+            ("or".to_string(), TokenType::Or),
+            ("struct".to_string(), TokenType::Struct),
+            ("if".to_string(), TokenType::If),
+            ("else".to_string(), TokenType::Else),
+            ("false".to_string(), TokenType::False),
+            ("True".to_string(), TokenType::True),
+            ("func".to_string(), TokenType::Func),
+            ("for".to_string(), TokenType::For),
+            ("nil".to_string(), TokenType::Nil),
+            ("print".to_string(), TokenType::Print),
+            ("return".to_string(), TokenType::Return),
+            ("self".to_string(), TokenType::SelfKeyword),
+            ("var".to_string(), TokenType::Var),
+            ("while".to_string(), TokenType::While),
+        ]);
+
+        let Some(keyword) = keywords.get(&lexeme) else {
+            return Ok(TokenType::Identifier);
+        };
+
+        Ok(keyword.to_owned())
     }
-    fn get_literal (&self, token_type: &Option<TokenType>) -> String {
-	let Some(token_type) = token_type else {return String::new();};
-	match token_type {
-	    TokenType::StringLiter =>{
-		// trim that string first
-		let begin_string = self.start_lexeme_indx + 1;
-		let end_string = self.current_char_indx - 1;
-		self.source_as_chars[begin_string..end_string].iter().collect::<String>().trim().to_string()
-	    },
-	    _ => String::new(),
-	}
+
+    fn handle_number_scanning(&mut self) -> Result<TokenType, ScanError> {
+        while self.peek_current().is_numeric() {
+            if self.peek_next().is_alphabetic() {
+                return Err(ScanError::ExpectedDigit);
+            }
+            let _ = self.next_char();
+        }
+
+        if self.peek_current() == '.' && self.peek_next().is_numeric() {
+            // consume the '.' in order the while loop under to work
+            let _ = self.next_char();
+
+            while self.peek_current().is_numeric() {
+                if self.peek_next().is_alphabetic() {
+                    return Err(ScanError::ExpectedDigit);
+                }
+                let _ = self.next_char();
+            }
+        }
+
+        return Ok(TokenType::Number);
+    }
+
+    fn handle_string_literal_scanning(&mut self) -> Result<TokenType, ScanError> {
+        while self.peek_current() != '"' {
+            // support for multiline
+            if self.peek_current() == '\n' {
+                self.line += 1;
+            }
+            let _ = self.next_char();
+        }
+
+        if self.is_eof() {
+            return Err(ScanError::UnterminatedString);
+        }
+
+        // consume the closing '\"'
+        let _ = self.next_char();
+
+        Ok(TokenType::StringLiter)
+    }
+
+    fn get_literal(&self, token_type: &Option<TokenType>) -> String {
+        let Some(token_type) = token_type else {
+            return String::new();
+        };
+        match token_type {
+            TokenType::StringLiter => {
+                // trim that string first
+                let begin_string = self.start_lexeme_indx + 1;
+                let end_string = self.current_char_indx - 1;
+                self.source_as_chars[begin_string..end_string]
+                    .iter()
+                    .collect::<String>()
+                    .trim()
+                    .to_string()
+            }
+
+            TokenType::Number => self.source_as_chars
+                [self.start_lexeme_indx..self.current_char_indx]
+                .iter()
+                .collect(),
+
+            _ => String::new(),
+        }
     }
 
     // peek will not consume/increment current char/char index like next_char
     fn peek_current(&self) -> char {
         // NOTE if unwrap get error => out of bound index
         return *self.source_as_chars.get(self.current_char_indx).unwrap();
+    }
+
+    fn peek_next(&self) -> char {
+        return *self
+            .source_as_chars
+            .get(self.current_char_indx + 1)
+            .unwrap();
     }
 
     // the char is the current character before increament comumn_indx
@@ -187,8 +289,8 @@ impl<'a> Scanner<'a> {
             };
             let lexeme = self.source_as_chars[self.start_lexeme_indx..self.current_char_indx]
                 .iter()
-                .collect::<>();
-	    let literal = self.get_literal(&token_type);
+                .collect();
+            let literal = self.get_literal(&token_type);
 
             let token = Token::new(token_type, lexeme, literal, self.line);
             self.tokens.push(token);
@@ -211,7 +313,7 @@ impl Token {
     pub fn new(
         token_type: Option<TokenType>,
         lexeme: String,
-        literal: String,
+        literal: String, // NOTE i think it should be generic type, not a String
         line: usize,
     ) -> Self {
         Self {
@@ -253,24 +355,22 @@ pub enum TokenType {
     Number,
 
     // keywords.
+    Func,
     Then,
     End,
     Do,
     And,
+    Or,
     Struct,
+    If,
     Else,
     False,
-    Func,
+    True,
     For,
-    If,
-    Null,
-    Or,
+    Nil,
     Print,
     Return,
     SelfKeyword,
-    True,
     Var,
     While,
-}
-impl TokenType {
 }
