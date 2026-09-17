@@ -2,6 +2,8 @@
 > [!NOTE]
 > the overview will not include rust speicifc info(you'll find it in the source code if so), maybe i'll change that in the future :)
 
+- book's challenges section for search and sometime try to impl a new feature
+- book's Design notes section give info about other programming languages implementation
 - there's several paths to build a interpreter or to interprete your program
 - steps to build an interpreter from raw text are : 
     - `scanner/lexer/lexical analysis step` gonna turns the chars on the text-file and chunk them together into words (in programming they called `lexemes`), lexemes can be a char "(", or word "foo", or literals like nums or strings, some chars get ignored like comments and whitespaces, leaving meaningful tokens, example: "var average = (min + max) / 2;" turns into -> "var" "average" "=" "(" "min" "max" ")" "/" "2" ";"

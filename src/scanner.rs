@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
+// TODO give variants values
 pub enum ScanError {
     UnexpectedLexeme,
     UnterminatedString,
@@ -61,28 +62,28 @@ impl<'a> Scanner<'a> {
             '+' => Ok(Some(TokenType::Plus)),
 
             '=' => {
-                if self.match_char('=') {
+                if self.match_current_char('=') {
                     Ok(Some(TokenType::EqualEqual))
                 } else {
                     Ok(Some(TokenType::Equal))
                 }
             }
             '!' => {
-                if self.match_char('=') {
+                if self.match_current_char('=') {
                     Ok(Some(TokenType::BangEqual))
                 } else {
                     Ok(Some(TokenType::Bang))
                 }
             }
             '>' => {
-                if self.match_char('=') {
+                if self.match_current_char('=') {
                     Ok(Some(TokenType::GreaterEqual))
                 } else {
                     Ok(Some(TokenType::Greater))
                 }
             }
             '<' => {
-                if self.match_char('=') {
+                if self.match_current_char('=') {
                     Ok(Some(TokenType::LessEqual))
                 } else {
                     Ok(Some(TokenType::Less))
@@ -93,12 +94,28 @@ impl<'a> Scanner<'a> {
                 Err(scan_error) => Err(scan_error),
             },
             '/' => {
-                if !self.match_char('/') {
+                // handle one line comments
+                if self.match_current_char('/') {
+                    // didn't consume \n, it'll be consumed later after calling this method
+                    while self.peek_current() != '\n' {
+                        let _ = self.next_char();
+                    }
+                    // handle multi line comments
+                } else if self.match_current_char('*') {
+                    while self.peek_current() != '*' && self.peek_next() != '/' {
+                        if self.peek_current() == '\n' {
+                            self.line += 1;
+                        }
+                        let _ = self.next_char();
+                    }
+                    // consume '*' and '/'
+                    let _ = self.next_char();
+                    let _ = self.next_char();
+                } else {
                     return Ok(Some(TokenType::Slash));
                 }
-                while self.peek_current() != '\n' {
-                    let _ = self.next_char();
-                }
+
+                // don't count comments as tokens
                 Ok(None)
             }
             ' ' | '\r' | '\t' => Ok(None),
@@ -111,18 +128,27 @@ impl<'a> Scanner<'a> {
             _ => {
                 // handle numbers
                 if self.peek_current().is_numeric() {
-                    match self.handle_number_scanning() {
+                    return match self.handle_number_scanning() {
                         Ok(token_type) => Ok(Some(token_type)),
                         Err(scan_error) => Err(scan_error),
-                    }
-                } else if self.peek_current().is_alphabetic() {
-                    match self.handle_identifiers() {
-                        Ok(token_type) => Ok(Some(token_type)),
-                        Err(scan_error) => Err(scan_error),
-                    }
-                } else {
-                    Err(ScanError::UnexpectedLexeme)
+                    };
                 }
+
+                // handle identifiers
+                // NOTE if user-defined ident have a (non prefix)num, will count as
+                //a lexical error
+                // NOTE if user-defined ident is only one character, will count as a
+                //lexical error
+                if self.peek_current().is_alphabetic() {
+                    return match self.handle_identifiers() {
+                        Ok(token_type) => Ok(Some(token_type)),
+                        Err(scan_error) => Err(scan_error),
+                    };
+                }
+
+                // TODO make a commit
+                dbg!(character);
+                Err(ScanError::UnexpectedLexeme)
             }
         };
     }
@@ -130,7 +156,7 @@ impl<'a> Scanner<'a> {
     // NOTE didn't handle any scan errors
     fn handle_identifiers(&mut self) -> Result<TokenType, ScanError> {
         // whitespaces are not considered as alphabetic
-        while self.peek_current().is_alphabetic() {
+        while self.peek_current().is_alphabetic() || self.peek_current() == '_' {
             let _ = self.next_char();
         }
 
@@ -214,7 +240,7 @@ impl<'a> Scanner<'a> {
         };
         match token_type {
             TokenType::StringLiter => {
-                // trim that string first
+                // trim that string first(remove both ")
                 let begin_string = self.start_lexeme_indx + 1;
                 let end_string = self.current_char_indx - 1;
                 self.source_as_chars[begin_string..end_string]
@@ -246,7 +272,7 @@ impl<'a> Scanner<'a> {
             .unwrap();
     }
 
-    // the char is the current character before increament comumn_indx
+    // the returned char is the current character before increament current_char_indx
     fn next_char(&mut self) -> char {
         let character = self.source_as_chars.get(self.current_char_indx).unwrap();
         self.current_char_indx += 1;
@@ -254,7 +280,8 @@ impl<'a> Scanner<'a> {
         *character
     }
 
-    fn match_char(&mut self, expected: char) -> bool {
+    fn match_current_char(&mut self, expected: char) -> bool {
+        // if didn't handle, i'll get out of index
         if self.is_eof() {
             return false;
         }
@@ -304,23 +331,24 @@ impl<'a> Scanner<'a> {
 // token == valid word(lexeme)
 pub struct Token {
     pub token_type: Option<TokenType>,
-    lexeme: String,
-    literal: String, // NOTE i think stands for the value of the token if any
-    line: usize,
+    // NOTE i do use those fields inside the methods, why mark theme as not being red ?
+    _lexeme: String,
+    _literal: String, // NOTE i think stands for the value of the token if any
+    _line: usize,
 }
 
 impl Token {
     pub fn new(
         token_type: Option<TokenType>,
-        lexeme: String,
-        literal: String, // NOTE i think it should be generic type, not a String
-        line: usize,
+        _lexeme: String,
+        _literal: String, // NOTE i think it should be generic type, not a String
+        _line: usize,
     ) -> Self {
         Self {
             token_type,
-            lexeme,
-            literal,
-            line,
+            _lexeme,
+            _literal,
+            _line,
         }
     }
 }
