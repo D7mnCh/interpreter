@@ -3,7 +3,7 @@ use std::collections::HashMap;
 #[derive(Clone, Debug)]
 // TODO give variants values
 pub enum ScanError {
-    UnexpectedLexeme,
+    UnexpectedLexeme(char),
     UnterminatedString,
     ExpectedDigit,
 }
@@ -11,8 +11,8 @@ pub enum ScanError {
 impl ScanError {
     pub fn report(&self, line: usize) {
         match self {
-            ScanError::UnexpectedLexeme => {
-                eprintln!("[Scan Error]: Unexpected lexeme at line: {line}")
+            ScanError::UnexpectedLexeme(c) => {
+                eprintln!("[Scan Error]: Unexpected lexeme \"{c}\" at line: {line}")
             }
             ScanError::UnterminatedString => {
                 eprintln!("[Scan Error]: Unterminated string")
@@ -146,9 +146,7 @@ impl<'a> Scanner<'a> {
                     };
                 }
 
-                // TODO make a commit
-                dbg!(character);
-                Err(ScanError::UnexpectedLexeme)
+                Err(ScanError::UnexpectedLexeme(self.peek_current()))
             }
         };
     }
