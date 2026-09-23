@@ -32,6 +32,38 @@ enum Expr {
     Grouping(Box<Expr>), // -> ( )
 }
 
+impl Expr {
+    // Constructors to simplfy and hide some details when creating an instance of Expr (e.g Box::new())
+    fn num_liter(value: f64) -> Expr {
+        Expr::NumLiter(value)
+    }
+    fn bool_liter(value: bool) -> Expr {
+        Expr::BoolLiter(value)
+    }
+    fn string_liter (value: String) -> Expr{
+        Expr::StringLiter(value)
+    }
+    fn nil() -> Expr {
+        Expr::Nil
+    }
+    fn binary(right: Expr, op: Op, left: Expr) -> Expr {
+        Expr::Binary {
+            right: Box::new(right),
+            op,
+            left: Box::new(left)
+        }
+    }
+    fn unary(op: UnaryOp, right: Expr) -> Expr{
+        Expr::Unary {
+            right: Box::new(right),
+            op,
+        }
+    }
+    fn grouping (expr: Expr) -> Expr{
+        Expr::Grouping (Box::new(expr))
+    }
+}
+
 #[derive(Debug)]
 enum UnaryOp {
     Neg,
@@ -55,15 +87,9 @@ enum Op {
 }
 
 // TODO impl pretty method for Expr, that turns the Expr instance into a String, used for debugging
-// TODO impl Constructors to simplfy and hid some details when creating an instance of Expr (e.g Box)
 
 #[test]
 fn creating_an_expr() {
-    // TODO use the new method with Constructors after impl theme
     // 1 + 1
-    let expr_1 = Expr::Binary {
-        left: Box::new(Expr::NumLiter(1.)),
-        op: Op::Add,
-        right: Box::new(Expr::Num_Liter(1.))
-    };
+    let expr_2 = Expr::binary(1, Op::Add, 1);
 }
