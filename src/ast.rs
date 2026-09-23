@@ -40,7 +40,7 @@ impl Expr {
     fn bool_liter(value: bool) -> Expr {
         Expr::BoolLiter(value)
     }
-    fn string_liter (value: String) -> Expr{
+    fn string_liter(value: String) -> Expr {
         Expr::StringLiter(value)
     }
     fn nil() -> Expr {
@@ -48,26 +48,52 @@ impl Expr {
     }
     fn binary(right: Expr, op: Op, left: Expr) -> Expr {
         Expr::Binary {
-            right: Box::new(right),
+            right: right.into(),
             op,
-            left: Box::new(left)
+            left: left.into(),
         }
     }
-    fn unary(op: UnaryOp, right: Expr) -> Expr{
+    fn unary(op: UnaryOp, right: Expr) -> Expr {
         Expr::Unary {
-            right: Box::new(right),
+            right: right.into(),
             op,
         }
     }
-    fn grouping (expr: Expr) -> Expr{
-        Expr::Grouping (Box::new(expr))
+    fn grouping(expr: Expr) -> Expr {
+        Expr::Grouping(expr.into())
+    }
+}
+
+impl Expr {
+    // pretty printer is going to represent AST rather then valid rlox(programing langauge) syntax
+    fn pretty(&self) -> String {
+        match self {
+            Expr::NumLiter(value) => format!("{value}"),
+            Expr::BoolLiter(value) => format!("{value}"),
+            Expr::StringLiter(value) => value.clone(),
+            Expr::Nil => "nil".to_string(),
+            Expr::Binary { right, op, left } => {
+                format!("({1} {0} {2})", right.pretty(), op.as_str(), left.pretty())
+            }
+            Expr::Unary { right, op } => format!("({1} {0})", right.pretty(), op.as_str()),
+            Expr::Grouping(expr) => format!("(group {})", expr.pretty()),
+        }
     }
 }
 
 #[derive(Debug)]
 enum UnaryOp {
     Neg,
-    Not
+    Not,
+}
+
+impl UnaryOp {
+    fn as_str(&self) -> &'static str {
+        match self {
+            UnaryOp::Neg => "-",
+            UnaryOp::Not => "!",
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -83,13 +109,45 @@ enum Op {
     Eq,
     And,
     Or,
-    Neg,
+    NE,
 }
 
-// TODO impl pretty method for Expr, that turns the Expr instance into a String, used for debugging
+impl Op {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Op::Add => "+",
+            Op::Sub => "-",
+            Op::Mul => "*",
+            Op::Div => "/",
+            Op::LT => "<",
+            Op::LE => "<=",
+            Op::GT => ">",
+            Op::GE => ">=",
+            Op::Eq => "==",
+            Op::NE => "!=",
+            Op::And => "and",
+            Op::Or => "or",
+        }
+    }
+}
 
 #[test]
-fn creating_an_expr() {
-    // 1 + 1
-    let expr_2 = Expr::binary(1, Op::Add, 1);
+fn creating_an_exprs() {
+    // (+ 1 1) -> 1 + 1
+    // as you notice, it's kinda look like lisp :O
+    
+    let expr_1 = Expr::binary(Expr::num_liter(1.), Op::Add, Expr::num_liter(1.));
+    assert_eq!(expr_1.pretty(), "(+ 1 1)".to_string());
+
+    // (/ (group (+ 1 1)) 2) -> (1 + 1) / 2
+    let expr_2 = Expr::binary(
+        Expr::grouping(Expr::binary(
+            Expr::num_liter(1.),
+            Op::Add,
+            Expr::num_liter(1.),
+        )),
+        Op::Div,
+        Expr::num_liter(2.),
+    );
+    assert_eq!(expr_2.pretty(), "(/ (group (+ 1 1)) 2)".to_string());
 }
