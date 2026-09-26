@@ -1,4 +1,7 @@
+#![allow(dead_code)]
+
 mod ast;
+mod parser;
 mod scanner;
 use scanner::Scanner;
 
@@ -48,9 +51,8 @@ fn run(source: String) {
     let tokens = scanner.tokenize();
 
     for token in tokens.into_iter() {
+        let token_type = token.get_token_type();
         // show only valid tokens
-        if let Some(ref _ty) = token.token_type {
-            println!("{token:?}");
-        }
+        println!("{token_type:?}");
     }
 }

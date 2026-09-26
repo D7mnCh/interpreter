@@ -15,7 +15,7 @@ operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
 // can't do Expr<T> cuz the recursion of Expr when choosing Literal(T) varient, all will have the
 //the same T value(and you don't want that)
 #[derive(Debug)]
-enum Expr {
+pub enum Expr {
     NumLiter(f64),
     StringLiter(String),
     BoolLiter(bool),
@@ -29,37 +29,37 @@ enum Expr {
         op: Op,
         right: Box<Expr>,
     },
-    Grouping(Box<Expr>), // -> ( )
+    Grouping(Box<Expr>), /* ( ) */
 }
 
 impl Expr {
     // Constructors to simplfy and hide some details when creating an instance of Expr (e.g Box::new())
-    fn num_liter(value: f64) -> Expr {
+    pub fn num_liter(value: f64) -> Expr {
         Expr::NumLiter(value)
     }
-    fn bool_liter(value: bool) -> Expr {
+    pub fn bool_liter(value: bool) -> Expr {
         Expr::BoolLiter(value)
     }
-    fn string_liter(value: String) -> Expr {
+    pub fn string_liter(value: String) -> Expr {
         Expr::StringLiter(value)
     }
-    fn nil() -> Expr {
+    pub fn nil() -> Expr {
         Expr::Nil
     }
-    fn binary(right: Expr, op: Op, left: Expr) -> Expr {
+    pub fn binary(right: Expr, op: Op, left: Expr) -> Expr {
         Expr::Binary {
             right: right.into(),
             op,
             left: left.into(),
         }
     }
-    fn unary(op: UnaryOp, right: Expr) -> Expr {
+    pub fn unary(op: UnaryOp, right: Expr) -> Expr {
         Expr::Unary {
             right: right.into(),
             op,
         }
     }
-    fn grouping(expr: Expr) -> Expr {
+    pub fn grouping(expr: Expr) -> Expr {
         Expr::Grouping(expr.into())
     }
 }
@@ -82,7 +82,7 @@ impl Expr {
 }
 
 #[derive(Debug)]
-enum UnaryOp {
+pub enum UnaryOp {
     Neg,
     Not,
 }
@@ -97,19 +97,20 @@ impl UnaryOp {
 }
 
 #[derive(Debug)]
-enum Op {
+pub enum Op {
     Add,
     Sub,
     Div,
     Mul,
-    LT,
-    LE,
-    GT,
-    GE,
-    Eq,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    EqEq,
+    Ne,
+
     And,
     Or,
-    NE,
 }
 
 impl Op {
@@ -119,12 +120,12 @@ impl Op {
             Op::Sub => "-",
             Op::Mul => "*",
             Op::Div => "/",
-            Op::LT => "<",
-            Op::LE => "<=",
-            Op::GT => ">",
-            Op::GE => ">=",
-            Op::Eq => "==",
-            Op::NE => "!=",
+            Op::Lt => "<",
+            Op::Le => "<=",
+            Op::Gt => ">",
+            Op::Ge => ">=",
+            Op::EqEq => "==",
+            Op::Ne => "!=",
             Op::And => "and",
             Op::Or => "or",
         }
@@ -135,7 +136,7 @@ impl Op {
 fn creating_an_exprs() {
     // (+ 1 1) -> 1 + 1
     // as you notice, it's kinda look like lisp :O
-    
+
     let expr_1 = Expr::binary(Expr::num_liter(1.), Op::Add, Expr::num_liter(1.));
     assert_eq!(expr_1.pretty(), "(+ 1 1)".to_string());
 

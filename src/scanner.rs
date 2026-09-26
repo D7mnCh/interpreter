@@ -151,6 +151,8 @@ impl<'a> Scanner<'a> {
         };
     }
 
+    // TODO change handle to scan (e.g scan_numbers, scan_identifiers)
+
     // NOTE didn't handle any scan errors
     fn handle_identifiers(&mut self) -> Result<TokenType, ScanError> {
         // whitespaces are not considered as alphabetic
@@ -294,6 +296,7 @@ impl<'a> Scanner<'a> {
         true
     }
 
+    // used to check eof and to prevent panic current_char_indx out of bound
     fn is_eof(&self) -> bool {
         self.current_char_indx >= self.source_as_chars.len()
     }
@@ -321,14 +324,22 @@ impl<'a> Scanner<'a> {
             self.tokens.push(token);
         }
 
+        let token = Token::new(
+            Some(TokenType::Eof),
+            "".to_owned(),
+            "".to_owned(),
+            self.line,
+        );
+        self.tokens.push(token);
+
         return self.tokens.clone(); // to visualize/debugging
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 // token == valid word(lexeme)
 pub struct Token {
-    pub token_type: Option<TokenType>,
+    token_type: Option<TokenType>,
     // NOTE i do use those fields inside the methods, why mark theme as not being red ?
     _lexeme: String,
     _literal: String, // NOTE i think stands for the value of the token if any
@@ -349,9 +360,12 @@ impl Token {
             _line,
         }
     }
+    pub fn get_token_type(&self) -> Option<TokenType> {
+        self.token_type.clone()
+    }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,
@@ -363,6 +377,7 @@ pub enum TokenType {
     Semicolon,
     Slash,
     Asterisk,
+    Eof, // needed in parser
 
     // one or two character tokens.
     Bang, // -> !

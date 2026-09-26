@@ -34,17 +34,27 @@
 - when turning the source code into tokens, you will transform it into a high-level representation(series of tokens)
 - we gotta build a abstract-syntax-tree(AST) that describes any valid syntax pattern for our language
 - that AST is more complexe than that scanner's output, that will allow me turn theme into a bunch of meaningfull data(that where chapter names came from, we will represent our code as a data) 
-- to write a `parser`, need to turn that high-level representation into more richer and complex one
-- A `formal grammar` takes a set of atomic pieces it calls its “alphabet”(complete set of letters). Then it defines a (usually infinite) set of “strings” that are “in” the grammar. Each string is a sequence of “letters”(specific symbol) in the alphabet (umm, that's a the scanner thing, but the scanner only have one string and didn't try to make an infinite set of strings)
+- to write a `parser`, need to turn that high-level representation into more richer and complex one(AST)
+- A `formal grammar` takes a set of atomic pieces it calls its “alphabet”(complete set of letters). Then it defines a (usually infinite) set of “strings” that are “in” the grammar. Each string is a sequence of “letters”(specific symbols) in the alphabet
 - formal grammar job is to specifies which strings are valid and which aren't
-- if a string created by set of rules, they called a `derivation`
+- valid syntax == valid grammar
+- if a string created by set of rules, it called a `derivation`
 - rules are callled `productions` cuz they produce strings
 - each production/rule has a `head`(name), and a `body` which describe what it generates
-- in pure form the body of a rule is a list of symbols that come with two flavors: `terminals`(letter/lexeme/token) and `nonterminals`(another/nested rule/production)
+- in pure form the body of a rule is a list of symbols that come with two flavors: `terminals`(letter/lexeme/token) and `nonterminals`(another/nested rule/production(subrule))
 - Author's expression's grammar (or syntax of our langauge) is defnined as : "rule(head) ->symbols(body);". if a symbol is a terminal defined as quoted string(if terminal/token may vary (not exactly the same but it's in the same category like numbers or strings) it represented as fully capitalized word), else (nonterminals) lowercase word
 - recurions allowance on nonterminals (it looks like rust's macro's syntax):
     - `+` allow recurion at least once or more
     - `*` allow recurion zero or more
     - `?` allow recurion zero or once
+- `pretty printer` is turning AST into valid language syntax
+- after turning the code into ast (parser job)(TODO)
+## Parsing
+- parsing's job is to produce an AST
+- the parser may misenderstand the user's code(it can generate valid AST), the parser should track which rule a token belong into in order to generate a "correct" AST
+- an incorrect AST is caused by incorrect evaluation of operations
+- we solve this problem by defining precedence and assosiativity for the operators, implies making the expression rule more specific (making a subexpression)
+- primary expr/rule covers the highest precedence literals and parenthesized expr
+- there's multiple implemantation of a parser, we choose `recursive desent` which is basically translation the grammar's rule graph into an actual code
 # Resuources
-[crafting-interpreter book](https://craftinginterpreters.com) -> chapter-5
+[crafting-interpreter book](https://craftinginterpreters.com) -> chapter-6
