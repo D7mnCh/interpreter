@@ -1,3 +1,9 @@
+/*
+- TODO need rewrite to make i more idiomatic rust(using rust std/features)
+- https://github.com/vladmonea/crusty_interpreter/blob/main/docs/Project5_Parsing.md
+- https://github.com/vladmonea/crusty_interpreter/blob/main/lux/src/tokenize.rs
+*/
+
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
@@ -360,8 +366,13 @@ impl Token {
             _line,
         }
     }
+
     pub fn get_token_type(&self) -> Option<TokenType> {
         self.token_type.clone()
+    }
+
+    pub fn get_literal(&self) -> &String {
+        &self._lexeme
     }
 }
 
