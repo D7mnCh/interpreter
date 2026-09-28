@@ -15,6 +15,7 @@ TODO
         - continue reading the book for now
         - remove unwrap
         - handle errors
+        - impl tests
 */
 
 use crate::ast::{Expr, Op, UnaryOp};
@@ -108,7 +109,7 @@ impl Parser {
     fn consume_if_match(&mut self) {}
 }
 
-// the actuall parser impl with the recursion decenet method
+// the actuall parser impl using the recursion descenet method
 impl Parser {
     fn expression(&mut self) -> Expr {
         self.equality()
@@ -149,6 +150,7 @@ impl Parser {
     }
     fn term(&mut self) -> Expr {
         let mut expr = self.factor();
+
         while self.match_current_token_type(&[TokenType::Minus, TokenType::Plus]) {
             let left = expr;
             let op = self.prev_token().get_token_type().unwrap().into();
@@ -161,6 +163,7 @@ impl Parser {
     }
     fn factor(&mut self) -> Expr {
         let mut expr = self.unary();
+
         while self.match_current_token_type(&[TokenType::Slash, TokenType::Asterisk]) {
             let left = expr;
             let op = self.prev_token().get_token_type().unwrap().into();
@@ -176,14 +179,17 @@ impl Parser {
         if self.match_current_token_type(&[TokenType::Bang, TokenType::Minus]) {
             let right = self.unary();
             let op: UnaryOp = self.prev_token().get_token_type().unwrap().into();
+
             return Expr::unary(op, right);
         }
+
         self.primary()
     }
 
     fn primary(&mut self) -> Expr {
         let token = self.prev_token();
         let literal = token.get_literal();
+
         return if self.match_current_token_type(&[TokenType::Number]) {
             Expr::num_liter(literal.parse().unwrap())
         } else if self.match_current_token_type(&[TokenType::StringLiter]) {
