@@ -1,4 +1,5 @@
 /*
+- i should work on the scanner cuz my parser not working properly
 - TODO need rewrite to make i more idiomatic rust(using rust std/features)
 - https://github.com/vladmonea/crusty_interpreter/blob/main/docs/Project5_Parsing.md
 - https://github.com/vladmonea/crusty_interpreter/blob/main/lux/src/tokenize.rs
@@ -134,7 +135,7 @@ impl<'a> Scanner<'a> {
             _ => {
                 // handle numbers
                 if self.peek_current().is_numeric() {
-                    return match self.handle_number_scanning() {
+                    return match self.scan_num() {
                         Ok(token_type) => Ok(Some(token_type)),
                         Err(scan_error) => Err(scan_error),
                     };
@@ -146,7 +147,7 @@ impl<'a> Scanner<'a> {
                 // NOTE if user-defined ident is only one character, will count as a
                 //lexical error
                 if self.peek_current().is_alphabetic() {
-                    return match self.handle_identifiers() {
+                    return match self.scan_ident() {
                         Ok(token_type) => Ok(Some(token_type)),
                         Err(scan_error) => Err(scan_error),
                     };
@@ -160,7 +161,7 @@ impl<'a> Scanner<'a> {
     // TODO change handle to scan (e.g scan_numbers, scan_identifiers)
 
     // NOTE didn't handle any scan errors
-    fn handle_identifiers(&mut self) -> Result<TokenType, ScanError> {
+    fn scan_ident(&mut self) -> Result<TokenType, ScanError> {
         // whitespaces are not considered as alphabetic
         while self.peek_current().is_alphabetic() || self.peek_current() == '_' {
             let _ = self.next_char();
@@ -198,7 +199,7 @@ impl<'a> Scanner<'a> {
         Ok(keyword.to_owned())
     }
 
-    fn handle_number_scanning(&mut self) -> Result<TokenType, ScanError> {
+    fn scan_num(&mut self) -> Result<TokenType, ScanError> {
         while self.peek_current().is_numeric() {
             if self.peek_next().is_alphabetic() {
                 return Err(ScanError::ExpectedDigit);
@@ -347,23 +348,23 @@ impl<'a> Scanner<'a> {
 pub struct Token {
     token_type: Option<TokenType>,
     // NOTE i do use those fields inside the methods, why mark theme as not being red ?
-    _lexeme: String,
-    _literal: String, // NOTE i think stands for the value of the token if any
-    _line: usize,
+    lexeme: String,
+    literal: String,
+    line: usize,
 }
 
 impl Token {
     pub fn new(
         token_type: Option<TokenType>,
-        _lexeme: String,
-        _literal: String, // NOTE i think it should be generic type, not a String
-        _line: usize,
+        lexeme: String,
+        literal: String, // NOTE i think it should be generic type, not a String
+        line: usize,
     ) -> Self {
         Self {
             token_type,
-            _lexeme,
-            _literal,
-            _line,
+            lexeme,
+            literal,
+            line,
         }
     }
 
@@ -371,8 +372,16 @@ impl Token {
         self.token_type.clone()
     }
 
+    pub fn get_lexeme(&self) -> &String {
+        &self.lexeme
+    }
+
     pub fn get_literal(&self) -> &String {
-        &self._lexeme
+        &self.literal
+    }
+
+    pub fn get_line(&self) -> usize {
+        self.line
     }
 }
 

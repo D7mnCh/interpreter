@@ -12,7 +12,8 @@ primary        → NUMBER | STRING | "true" | "false" | "nil"
 
 /*
 TODO
-        - continue reading the book for now
+        - fix your parser
+        - use ParseError.report() of run funciton after using match ?
         - remove unwrap
         - handle errors
         - impl tests
@@ -20,11 +21,6 @@ TODO
 
 use crate::ast::{Expr, Op, UnaryOp};
 use crate::scanner::{Token, TokenType};
-
-struct Parser {
-    tokens: Vec<Token>,
-    current_token_indx: usize,
-}
 
 impl From<TokenType> for Op {
     fn from(token_type: TokenType) -> Self {
@@ -56,11 +52,73 @@ impl From<TokenType> for UnaryOp {
     }
 }
 
+enum ParseError {
+    ExpectedExpr { found: Token },
+    ExpectedToken { expected: TokenType, found: Token },
+    ExpectedNum { found: Token },
+}
+
+// i think you can map the error to ParseError
+// impl From<ParseFloatError> for ParseError {
+//     fn from(_error: ParseFloatError) -> Self {
+//         // eprintln!("{_error}");
+//         Self::ExpectedNum
+//     }
+// }
+
+impl ParseError {
+    fn at_which_line(&self, token: &Token) -> String {
+        let Some(token_type) = token.get_token_type() else {
+            return String::new();
+        };
+        if token_type == TokenType::Eof {
+            format!("[Parse Error] Line {} at end:", token.get_line())
+        } else {
+            format!(
+                "[Parse Error] Line {} at {}:",
+                token.get_line(),
+                token.get_lexeme()
+            )
+        }
+    }
+
+    fn report(&self) {
+        match self {
+            Self::ExpectedNum { found } => eprintln!(
+                "{}: Expected a Number literal after expression, found {}",
+                self.at_which_line(&found),
+                found.get_lexeme()
+            ),
+            Self::ExpectedToken { expected, found } => eprintln!(
+                "{}: Expected '{:?} after expression, found {}' ",
+                self.at_which_line(&found),
+                // TODO, impl TokenType::as_str()
+                expected,
+                found.get_lexeme()
+            ),
+            Self::ExpectedExpr { found } => {
+                eprintln!(
+                    "{} Expected expr, found \"{}\"",
+                    self.at_which_line(&found),
+                    found.get_lexeme()
+                )
+            }
+        }
+    }
+}
+
+pub struct Parser {
+    tokens: Vec<Token>,
+    parse_errors: Vec<ParseError>,
+    current_token_indx: usize,
+}
+
 // parser utils
 impl Parser {
-    fn new(tokens: Vec<Token>) -> Parser {
+    pub fn new(tokens: Vec<Token>) -> Parser {
         Self {
             tokens,
+            parse_errors: Vec::new(),
             current_token_indx: 0,
         }
     }
@@ -94,6 +152,7 @@ impl Parser {
         self.tokens[self.current_token_indx].clone()
     }
 
+    // used after self.match_current_token_type()
     fn prev_token(&self) -> Token {
         self.tokens[self.current_token_indx - 1].clone()
     }
@@ -106,31 +165,39 @@ impl Parser {
         true
     }
 
-    fn consume_if_match(&mut self) {}
+    fn consume_if_match(&mut self, token_type: TokenType) -> Option<ParseError> {
+        if !self.match_current_token_type(&[token_type.clone()]) {
+            return Some(ParseError::ExpectedToken {
+                expected: token_type,
+                found: self.peek_current_token(),
+            });
+        }
+        None
+    }
 }
 
 // the actuall parser impl using the recursion descenet method
 impl Parser {
-    fn expression(&mut self) -> Expr {
+    fn expression(&mut self) -> Result<Expr, ParseError> {
         self.equality()
     }
 
-    fn equality(&mut self) -> Expr {
+    fn equality(&mut self) -> Result<Expr, ParseError> {
         // expr could be only left-side, or be a binary expr
         let mut expr = self.comparison();
 
         // (...)* maps to while loop
         while self.match_current_token_type(&[TokenType::BangEqual, TokenType::EqualEqual]) {
-            let left = expr;
+            let left = expr?;
             let op = self.prev_token().get_token_type().unwrap().into();
-            let right = self.comparison();
+            let right = self.comparison()?;
 
-            expr = Expr::binary(right, op, left);
+            expr = Ok(Expr::binary(left, op, right));
         }
 
         expr
     }
-    fn comparison(&mut self) -> Expr {
+    fn comparison(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.term();
 
         while self.match_current_token_type(&[
@@ -139,76 +206,90 @@ impl Parser {
             TokenType::Less,
             TokenType::LessEqual,
         ]) {
-            let left = expr;
+            let left = expr?;
             let op = self.prev_token().get_token_type().unwrap().into();
-            let right = self.term();
+            let right = self.term()?;
 
-            expr = Expr::binary(right, op, left);
+            expr = Ok(Expr::binary(left, op, right));
         }
 
         expr
     }
-    fn term(&mut self) -> Expr {
+    fn term(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.factor();
 
         while self.match_current_token_type(&[TokenType::Minus, TokenType::Plus]) {
-            let left = expr;
+            let left = expr?;
             let op = self.prev_token().get_token_type().unwrap().into();
-            let right = self.factor();
+            let right = self.factor()?;
 
-            expr = Expr::binary(right, op, left);
+            expr = Ok(Expr::binary(left, op, right));
         }
 
         expr
     }
-    fn factor(&mut self) -> Expr {
+    fn factor(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.unary();
 
         while self.match_current_token_type(&[TokenType::Slash, TokenType::Asterisk]) {
-            let left = expr;
+            let left = expr?;
             let op = self.prev_token().get_token_type().unwrap().into();
             let right = self.unary();
 
-            expr = Expr::binary(right, op, left);
+            expr = Ok(Expr::binary(right?, op, left));
         }
 
         expr
     }
-    fn unary(&mut self) -> Expr {
+    fn unary(&mut self) -> Result<Expr, ParseError> {
         // first match if it an unary op or a priamry (need a method?)
         if self.match_current_token_type(&[TokenType::Bang, TokenType::Minus]) {
-            let right = self.unary();
+            let right = self.unary()?;
             let op: UnaryOp = self.prev_token().get_token_type().unwrap().into();
 
-            return Expr::unary(op, right);
+            return Ok(Expr::unary(op, right));
         }
 
         self.primary()
     }
 
-    fn primary(&mut self) -> Expr {
-        let token = self.prev_token();
-        let literal = token.get_literal();
-
+    fn primary(&mut self) -> Result<Expr, ParseError> {
         return if self.match_current_token_type(&[TokenType::Number]) {
-            Expr::num_liter(literal.parse().unwrap())
+            let token = self.prev_token();
+            let literal = token.get_literal();
+            Ok(Expr::num_liter(literal.parse().unwrap()))
         } else if self.match_current_token_type(&[TokenType::StringLiter]) {
-            Expr::string_liter(literal.to_owned())
+            let token = self.prev_token();
+            let literal = token.get_literal();
+            Ok(Expr::string_liter(literal.to_owned()))
         } else if self.match_current_token_type(&[TokenType::True]) {
-            Expr::bool_liter(true)
+            Ok(Expr::bool_liter(true))
         } else if self.match_current_token_type(&[TokenType::False]) {
-            Expr::bool_liter(false)
+            Ok(Expr::bool_liter(false))
         } else if self.match_current_token_type(&[TokenType::Nil]) {
-            Expr::Nil
+            Ok(Expr::Nil)
         } else if self.match_current_token_type(&[TokenType::LeftParen]) {
-            let expr = self.expression();
+            let expr = self.expression()?;
             // consume next token, don't self.next_token(), check if it ")" and then consume it
-            if !self.match_current_token_type(&[TokenType::RightParen]) {
-                todo!("error");
+            if let Some(e) = self.consume_if_match(TokenType::RightParen) {
+                return Err(e);
             }
-            Expr::grouping(expr)
+            Ok(Expr::grouping(expr))
         } else {
-            todo!("error")
+            Err(ParseError::ExpectedExpr {
+                found: self.peek_current_token(),
+            })
+        };
+    }
+
+    // for now parses only one expr
+    pub fn parse(&mut self) -> Option<Expr> {
+        return match self.expression() {
+            Ok(expr) => Some(expr),
+            Err(err) => {
+                err.report();
+                None
+            }
         };
     }
 }

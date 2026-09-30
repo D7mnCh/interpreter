@@ -46,7 +46,7 @@ impl Expr {
     pub fn nil() -> Expr {
         Expr::Nil
     }
-    pub fn binary(right: Expr, op: Op, left: Expr) -> Expr {
+    pub fn binary(left: Expr, op: Op, right: Expr) -> Expr {
         Expr::Binary {
             right: right.into(),
             op,

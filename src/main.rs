@@ -1,10 +1,4 @@
-#![allow(dead_code)]
-
-mod ast;
-mod parser;
-mod scanner;
-use scanner::Scanner;
-
+use interpreter::{parser::Parser, scanner::Scanner};
 use std::{
     env, fs,
     io::{self, Result},
@@ -19,14 +13,10 @@ fn main() -> Result<()> {
             println!("Usage: rlox file.rlox");
         } else {
             let source = fs::read_to_string(args[1].clone())?;
-            run_file(source);
+            run(source);
         }
     }
     Ok(())
-}
-
-fn run_file(source: String) {
-    run(source);
 }
 
 fn run_prompt() {
@@ -50,9 +40,14 @@ fn run(source: String) {
 
     let tokens = scanner.tokenize();
 
-    for token in tokens.into_iter() {
+    for token in tokens.clone().into_iter() {
         let token_type = token.get_token_type();
-        // show only valid tokens
-        println!("{token_type:?}");
+        if let Some(token_type) = token_type {
+            println!("{token_type:?}");
+        }
     }
+
+    let mut parser = Parser::new(tokens);
+    let expr = parser.parse();
+    println!("expr -> {expr:?}");
 }
