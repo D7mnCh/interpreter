@@ -1,5 +1,4 @@
 /*
-- i should work on the scanner cuz my parser not working properly
 - TODO need rewrite to make i more idiomatic rust(using rust std/features)
 - https://github.com/vladmonea/crusty_interpreter/blob/main/docs/Project5_Parsing.md
 - https://github.com/vladmonea/crusty_interpreter/blob/main/lux/src/tokenize.rs
@@ -8,7 +7,7 @@
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
-// TODO give variants values
+// TODO give variants values, maybe fields  i
 pub enum ScanError {
     UnexpectedLexeme(char),
     UnterminatedString,
@@ -16,10 +15,10 @@ pub enum ScanError {
 }
 
 impl ScanError {
-    pub fn report(&self, line: usize) {
+    pub fn report(&self, line: usize, column: usize) {
         match self {
             ScanError::UnexpectedLexeme(c) => {
-                eprintln!("[Scan Error]: Unexpected lexeme \"{c}\" at line: {line}")
+                eprintln!("[Scan Error]: Unexpected lexeme \"{c:?}\" at {line}:{column}")
             }
             ScanError::UnterminatedString => {
                 eprintln!("[Scan Error]: Unterminated string")
@@ -32,19 +31,20 @@ impl ScanError {
 }
 
 pub struct Scanner<'a> {
-    // for source field, i tried using &str instead of &str, i face a problem where if lexemes is
-    //compacted together like var=10, how you are going to tokenize it ?
-    source_as_chars: &'a [char], // view
+    // &'a [char] is better then &'a str, former will allow working with utf8 chars,
+    //and can iter without out of the box (cuz it's a slice)
+    source: &'a [char], // view
     tokens: Vec<Token>,
-    start_lexeme_indx: usize, // depend on current_char_indx
+    // depend on current_char_indx
+    start_lexeme_indx: usize,
     current_char_indx: usize,
     line: usize,
 }
 
 impl<'a> Scanner<'a> {
-    pub fn new(source_as_chars: &'a [char]) -> Self {
+    pub fn new(source: &'a [char]) -> Self {
         Self {
-            source_as_chars,
+            source,
             tokens: Vec::new(),
             start_lexeme_indx: 0,
             current_char_indx: 0,
@@ -52,63 +52,62 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    // NOTE don't like to have &mut self
     // &mut needed to mute self.current_char_indx
-    fn scan_tokens(&mut self) -> Result<Option<TokenType>, ScanError> {
+    fn scan_tokens(&mut self) -> Option<Result<TokenType, ScanError>> {
+        //i was scanning source with lines() method, i face a problem where if the lexeme is
+        //compacted together like var=10, i've to impl the current approach and i think it make the
+        //code a bit noisy, solution is to scan char by char without using lines()
         let character = self.next_char();
         return match character {
-            '(' => Ok(Some(TokenType::LeftParen)),
-            ')' => Ok(Some(TokenType::RightParen)),
-            //'{' => Ok(Some(TokenType::LeftBracet)),
-            //'}' => Ok(Some(TokenType::RightBracet)),
-            ',' => Ok(Some(TokenType::Comma)),
-            '.' => Ok(Some(TokenType::Dot)),
-            ';' => Ok(Some(TokenType::Semicolon)),
-            '*' => Ok(Some(TokenType::Asterisk)),
-            '-' => Ok(Some(TokenType::Minus)),
-            '+' => Ok(Some(TokenType::Plus)),
+            '(' => Some(Ok(TokenType::LeftParen)),
+            ')' => Some(Ok(TokenType::RightParen)),
+            //'{' => Some(Ok(TokenType::LeftBracet)),
+            //'}' => Some(Ok(TokenType::RightBracet)),
+            ',' => Some(Ok(TokenType::Comma)),
+            '.' => Some(Ok(TokenType::Dot)),
+            ';' => Some(Ok(TokenType::Semicolon)),
+            '*' => Some(Ok(TokenType::Asterisk)),
+            '-' => Some(Ok(TokenType::Minus)),
+            '+' => Some(Ok(TokenType::Plus)),
 
             '=' => {
-                if self.match_current_char('=') {
-                    Ok(Some(TokenType::EqualEqual))
+                if self.current_char_match('=') {
+                    Some(Ok(TokenType::EqualEqual))
                 } else {
-                    Ok(Some(TokenType::Equal))
+                    Some(Ok(TokenType::Equal))
                 }
             }
             '!' => {
-                if self.match_current_char('=') {
-                    Ok(Some(TokenType::BangEqual))
+                if self.current_char_match('=') {
+                    Some(Ok(TokenType::BangEqual))
                 } else {
-                    Ok(Some(TokenType::Bang))
+                    Some(Ok(TokenType::Bang))
                 }
             }
             '>' => {
-                if self.match_current_char('=') {
-                    Ok(Some(TokenType::GreaterEqual))
+                if self.current_char_match('=') {
+                    Some(Ok(TokenType::GreaterEqual))
                 } else {
-                    Ok(Some(TokenType::Greater))
+                    Some(Ok(TokenType::Greater))
                 }
             }
             '<' => {
-                if self.match_current_char('=') {
-                    Ok(Some(TokenType::LessEqual))
+                if self.current_char_match('=') {
+                    Some(Ok(TokenType::LessEqual))
                 } else {
-                    Ok(Some(TokenType::Less))
+                    Some(Ok(TokenType::Less))
                 }
             }
-            '"' => match self.handle_string_literal_scanning() {
-                Ok(token_type) => Ok(Some(token_type)),
-                Err(scan_error) => Err(scan_error),
-            },
+            '"' => Some(self.scan_string()),
             '/' => {
                 // handle one line comments
-                if self.match_current_char('/') {
-                    // didn't consume \n, it'll be consumed later after calling this method
+                if self.current_char_match('/') {
+                    // didn't consume \n, consumed later after next call of scan_token()
                     while self.peek_current() != '\n' {
                         let _ = self.next_char();
                     }
                     // handle multi line comments
-                } else if self.match_current_char('*') {
+                } else if self.current_char_match('*') {
                     while self.peek_current() != '*' && self.peek_next() != '/' {
                         if self.peek_current() == '\n' {
                             self.line += 1;
@@ -119,55 +118,46 @@ impl<'a> Scanner<'a> {
                     let _ = self.next_char();
                     let _ = self.next_char();
                 } else {
-                    return Ok(Some(TokenType::Slash));
+                    return Some(Ok(TokenType::Slash));
                 }
 
-                // don't count comments as tokens
-                Ok(None)
+                None
             }
-            ' ' | '\r' | '\t' => Ok(None),
             '\n' => {
                 self.line += 1;
-                Ok(None)
+                None
             }
-
+            c if c.is_whitespace() => None,
             // handle numbers and identifiers
-            _ => {
+            c => {
                 // handle numbers
-                if self.peek_current().is_numeric() {
-                    return match self.scan_num() {
-                        Ok(token_type) => Ok(Some(token_type)),
-                        Err(scan_error) => Err(scan_error),
-                    };
+                // i was doing self.peek_current().is_numeric instead of 'c', but i do forget that
+                //i increamnt current_char_indx at the begging of the function
+                if c.is_numeric() {
+                    return Some(self.scan_num());
                 }
 
                 // handle identifiers
-                // NOTE if user-defined ident have a (non prefix)num, will count as
-                //a lexical error
-                // NOTE if user-defined ident is only one character, will count as a
-                //lexical error
-                if self.peek_current().is_alphabetic() {
-                    return match self.scan_ident() {
-                        Ok(token_type) => Ok(Some(token_type)),
-                        Err(scan_error) => Err(scan_error),
-                    };
+                if c.is_alphabetic() || c == '_' {
+                    return Some(self.scan_ident());
                 }
 
-                Err(ScanError::UnexpectedLexeme(self.peek_current()))
+                Some(Err(ScanError::UnexpectedLexeme(self.peek_current())))
             }
         };
     }
 
-    // TODO change handle to scan (e.g scan_numbers, scan_identifiers)
-
     // NOTE didn't handle any scan errors
     fn scan_ident(&mut self) -> Result<TokenType, ScanError> {
         // whitespaces are not considered as alphabetic
-        while self.peek_current().is_alphabetic() || self.peek_current() == '_' {
+        while self.peek_current().is_alphabetic()
+            || self.peek_current() == '_'
+            || self.peek_current().is_numeric()
+        {
             let _ = self.next_char();
         }
 
-        let lexeme: String = self.source_as_chars[self.start_lexeme_indx..self.current_char_indx]
+        let lexeme: String = self.source[self.start_lexeme_indx..self.current_char_indx]
             .iter()
             .collect();
 
@@ -222,7 +212,7 @@ impl<'a> Scanner<'a> {
         return Ok(TokenType::Number);
     }
 
-    fn handle_string_literal_scanning(&mut self) -> Result<TokenType, ScanError> {
+    fn scan_string(&mut self) -> Result<TokenType, ScanError> {
         while self.peek_current() != '"' {
             // support for multiline
             if self.peek_current() == '\n' {
@@ -241,24 +231,20 @@ impl<'a> Scanner<'a> {
         Ok(TokenType::StringLiter)
     }
 
-    fn get_literal(&self, token_type: &Option<TokenType>) -> String {
-        let Some(token_type) = token_type else {
-            return String::new();
-        };
+    fn get_literal(&self, token_type: &TokenType) -> String {
         match token_type {
             TokenType::StringLiter => {
                 // trim that string first(remove both ")
                 let begin_string = self.start_lexeme_indx + 1;
                 let end_string = self.current_char_indx - 1;
-                self.source_as_chars[begin_string..end_string]
+                self.source[begin_string..end_string]
                     .iter()
                     .collect::<String>()
                     .trim()
                     .to_string()
             }
 
-            TokenType::Number => self.source_as_chars
-                [self.start_lexeme_indx..self.current_char_indx]
+            TokenType::Number => self.source[self.start_lexeme_indx..self.current_char_indx]
                 .iter()
                 .collect(),
 
@@ -269,31 +255,28 @@ impl<'a> Scanner<'a> {
     // peek will not consume/increment current char/char index like next_char
     fn peek_current(&self) -> char {
         // NOTE if unwrap get error => out of bound index
-        return *self.source_as_chars.get(self.current_char_indx).unwrap();
+        return *self.source.get(self.current_char_indx).unwrap();
     }
 
     fn peek_next(&self) -> char {
-        return *self
-            .source_as_chars
-            .get(self.current_char_indx + 1)
-            .unwrap();
+        return *self.source.get(self.current_char_indx + 1).unwrap();
     }
 
     // the returned char is the current character before increament current_char_indx
     fn next_char(&mut self) -> char {
-        let character = self.source_as_chars.get(self.current_char_indx).unwrap();
+        let character = self.source.get(self.current_char_indx).unwrap();
         self.current_char_indx += 1;
 
         *character
     }
 
-    fn match_current_char(&mut self, expected: char) -> bool {
+    fn current_char_match(&mut self, expected: char) -> bool {
         // if didn't handle, i'll get out of index
         if self.is_eof() {
             return false;
         }
 
-        let character = self.source_as_chars.get(self.current_char_indx).unwrap();
+        let character = self.source.get(self.current_char_indx).unwrap();
         if *character != expected {
             return false;
         }
@@ -305,7 +288,7 @@ impl<'a> Scanner<'a> {
 
     // used to check eof and to prevent panic current_char_indx out of bound
     fn is_eof(&self) -> bool {
-        self.current_char_indx >= self.source_as_chars.len()
+        self.current_char_indx >= self.source.len()
     }
 
     // NOTE should have self.tokenize(&mut self) should push result of
@@ -313,29 +296,38 @@ impl<'a> Scanner<'a> {
     pub fn tokenize(&mut self) -> Vec<Token> {
         while !self.is_eof() {
             self.start_lexeme_indx = self.current_char_indx;
-            // if token_type is None, that None can be valid tokens but redandant
-            //(e.g commits, whitespaces), or it can be ScanError(e.g  @#$@#$)
-            let token_type = match self.scan_tokens() {
-                Ok(token_kind) => token_kind,
+            let Some(scan_result) = self.scan_tokens() else {
+                continue;
+            };
+            let token_type = match scan_result {
+                Ok(token_type) => token_type,
                 Err(scan_error) => {
-                    scan_error.report(self.line);
-                    None
+                    scan_error.report(self.line, self.current_char_indx + 1);
+                    continue;
                 }
             };
-            let lexeme = self.source_as_chars[self.start_lexeme_indx..self.current_char_indx]
+
+            let lexeme = self.source[self.start_lexeme_indx..self.current_char_indx]
                 .iter()
                 .collect();
             let literal = self.get_literal(&token_type);
 
-            let token = Token::new(token_type, lexeme, literal, self.line);
+            let token = Token::new(
+                token_type,
+                lexeme,
+                literal,
+                self.line,
+                self.current_char_indx + 1,
+            );
             self.tokens.push(token);
         }
 
         let token = Token::new(
-            Some(TokenType::Eof),
+            TokenType::Eof,
             "".to_owned(),
             "".to_owned(),
             self.line,
+            self.current_char_indx,
         );
         self.tokens.push(token);
 
@@ -344,31 +336,35 @@ impl<'a> Scanner<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-// token == valid word(lexeme)
+// token == valid word/lexeme
 pub struct Token {
-    token_type: Option<TokenType>,
-    // NOTE i do use those fields inside the methods, why mark theme as not being red ?
+    token_type: TokenType,
     lexeme: String,
     literal: String,
     line: usize,
+    current_char: usize,
 }
 
 impl Token {
     pub fn new(
-        token_type: Option<TokenType>,
+        // it was set Option<TokenType> as a type, with it i could have None TokenType,
+        //i could just continue or do early return when face None situation
+        token_type: TokenType,
         lexeme: String,
         literal: String, // NOTE i think it should be generic type, not a String
         line: usize,
+        current_char: usize,
     ) -> Self {
         Self {
             token_type,
             lexeme,
             literal,
             line,
+            current_char,
         }
     }
 
-    pub fn get_token_type(&self) -> Option<TokenType> {
+    pub fn get_token_type(&self) -> TokenType {
         self.token_type.clone()
     }
 
@@ -382,6 +378,10 @@ impl Token {
 
     pub fn get_line(&self) -> usize {
         self.line
+    }
+
+    pub fn get_char(&self) -> usize {
+        self.current_char
     }
 }
 

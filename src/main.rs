@@ -40,14 +40,16 @@ fn run(source: String) {
 
     let tokens = scanner.tokenize();
 
+    print!("tokens -> ");
     for token in tokens.clone().into_iter() {
         let token_type = token.get_token_type();
-        if let Some(token_type) = token_type {
-            println!("{token_type:?}");
-        }
+        print!("{token_type:?},");
     }
+    println!();
 
     let mut parser = Parser::new(tokens);
-    let expr = parser.parse();
-    println!("expr -> {expr:?}");
+    let expr_kind = parser.parse();
+    if let Some(expr) = expr_kind {
+        println!("expr -> {}", expr.pretty());
+    }
 }

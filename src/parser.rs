@@ -12,7 +12,6 @@ primary        → NUMBER | STRING | "true" | "false" | "nil"
 
 /*
 TODO
-        - fix your parser
         - use ParseError.report() of run funciton after using match ?
         - remove unwrap
         - handle errors
@@ -68,15 +67,18 @@ enum ParseError {
 
 impl ParseError {
     fn at_which_line(&self, token: &Token) -> String {
-        let Some(token_type) = token.get_token_type() else {
-            return String::new();
-        };
+        let token_type = token.get_token_type();
         if token_type == TokenType::Eof {
-            format!("[Parse Error] Line {} at end:", token.get_line())
+            format!(
+                "[Parse Error] Line {}:{} at end:",
+                token.get_line(),
+                token.get_char()
+            )
         } else {
             format!(
-                "[Parse Error] Line {} at {}:",
+                "[Parse Error] Line {}:{} at {}:",
                 token.get_line(),
+                token.get_char(),
                 token.get_lexeme()
             )
         }
@@ -139,7 +141,7 @@ impl Parser {
 
         if token_types
             .iter()
-            .any(|token_type| Some(token_type) == current_token_type.as_ref())
+            .any(|token_type| token_type == &current_token_type)
         {
             self.next_token();
             return true;
@@ -159,7 +161,7 @@ impl Parser {
 
     fn is_tokens_end(&self) -> bool {
         let token_type = self.peek_current_token().get_token_type();
-        if token_type != Some(TokenType::Eof) {
+        if token_type != TokenType::Eof {
             return false;
         }
         true
@@ -189,7 +191,7 @@ impl Parser {
         // (...)* maps to while loop
         while self.match_current_token_type(&[TokenType::BangEqual, TokenType::EqualEqual]) {
             let left = expr?;
-            let op = self.prev_token().get_token_type().unwrap().into();
+            let op = self.prev_token().get_token_type().into();
             let right = self.comparison()?;
 
             expr = Ok(Expr::binary(left, op, right));
@@ -197,6 +199,7 @@ impl Parser {
 
         expr
     }
+
     fn comparison(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.term();
 
@@ -207,7 +210,7 @@ impl Parser {
             TokenType::LessEqual,
         ]) {
             let left = expr?;
-            let op = self.prev_token().get_token_type().unwrap().into();
+            let op = self.prev_token().get_token_type().into();
             let right = self.term()?;
 
             expr = Ok(Expr::binary(left, op, right));
@@ -215,12 +218,13 @@ impl Parser {
 
         expr
     }
+
     fn term(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.factor();
 
         while self.match_current_token_type(&[TokenType::Minus, TokenType::Plus]) {
             let left = expr?;
-            let op = self.prev_token().get_token_type().unwrap().into();
+            let op = self.prev_token().get_token_type().into();
             let right = self.factor()?;
 
             expr = Ok(Expr::binary(left, op, right));
@@ -228,12 +232,13 @@ impl Parser {
 
         expr
     }
+
     fn factor(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.unary();
 
         while self.match_current_token_type(&[TokenType::Slash, TokenType::Asterisk]) {
             let left = expr?;
-            let op = self.prev_token().get_token_type().unwrap().into();
+            let op = self.prev_token().get_token_type().into();
             let right = self.unary();
 
             expr = Ok(Expr::binary(right?, op, left));
@@ -245,7 +250,7 @@ impl Parser {
         // first match if it an unary op or a priamry (need a method?)
         if self.match_current_token_type(&[TokenType::Bang, TokenType::Minus]) {
             let right = self.unary()?;
-            let op: UnaryOp = self.prev_token().get_token_type().unwrap().into();
+            let op: UnaryOp = self.prev_token().get_token_type().into();
 
             return Ok(Expr::unary(op, right));
         }
@@ -283,6 +288,7 @@ impl Parser {
     }
 
     // for now parses only one expr
+    // if self.expression() return an error, i should not have an Expr but None
     pub fn parse(&mut self) -> Option<Expr> {
         return match self.expression() {
             Ok(expr) => Some(expr),

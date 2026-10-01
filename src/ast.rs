@@ -66,7 +66,7 @@ impl Expr {
 
 impl Expr {
     // pretty printer is going to represent AST rather then valid rlox(programing langauge) syntax
-    fn pretty(&self) -> String {
+    pub fn pretty(&self) -> String {
         match self {
             Expr::NumLiter(value) => format!("{value}"),
             Expr::BoolLiter(value) => format!("{value}"),
