@@ -16,7 +16,7 @@ operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
 //the same T value(and you don't want that)
 #[derive(Debug)]
 pub enum Expr {
-    NumLiter(f64),
+    NumLiter(f32),
     StringLiter(String),
     BoolLiter(bool),
     Nil,
@@ -34,7 +34,7 @@ pub enum Expr {
 
 impl Expr {
     // Constructors to simplfy and hide some details when creating an instance of Expr (e.g Box::new())
-    pub fn num_liter(value: f64) -> Expr {
+    pub fn num_liter(value: f32) -> Expr {
         Expr::NumLiter(value)
     }
     pub fn bool_liter(value: bool) -> Expr {
@@ -116,18 +116,18 @@ pub enum Op {
 impl Op {
     fn as_str(&self) -> &'static str {
         match self {
-            Op::Add => "+",
-            Op::Sub => "-",
-            Op::Mul => "*",
-            Op::Div => "/",
-            Op::Lt => "<",
-            Op::Le => "<=",
-            Op::Gt => ">",
-            Op::Ge => ">=",
-            Op::EqEq => "==",
-            Op::Ne => "!=",
-            Op::And => "and",
-            Op::Or => "or",
+            Self::Add => "+",
+            Self::Sub => "-",
+            Self::Mul => "*",
+            Self::Div => "/",
+            Self::Lt => "<",
+            Self::Le => "<=",
+            Self::Gt => ">",
+            Self::Ge => ">=",
+            Self::EqEq => "==",
+            Self::Ne => "!=",
+            Self::And => "and",
+            Self::Or => "or",
         }
     }
 }

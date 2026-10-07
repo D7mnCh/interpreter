@@ -12,14 +12,13 @@ primary        → NUMBER | STRING | "true" | "false" | "nil"
 
 /*
 TODO
-        - use ParseError.report() of run funciton after using match ?
-        - remove unwrap
-        - handle errors
-        - impl tests
+    - impl tests
+NOTE
+    - error hanlding is kinda bad
 */
 
-use crate::ast::{Expr, Op, UnaryOp};
-use crate::scanner::{Token, TokenType};
+use super::ast::{Expr, Op, UnaryOp};
+use super::scanner::{Token, TokenType};
 
 impl From<TokenType> for Op {
     fn from(token_type: TokenType) -> Self {
@@ -76,7 +75,7 @@ impl ParseError {
             )
         } else {
             format!(
-                "[Parse Error] Line {}:{} at {}:",
+                "[Parse Error] Line {}:{} at \"{}\":",
                 token.get_line(),
                 token.get_char(),
                 token.get_lexeme()
@@ -87,12 +86,12 @@ impl ParseError {
     fn report(&self) {
         match self {
             Self::ExpectedNum { found } => eprintln!(
-                "{}: Expected a Number literal after expression, found {}",
+                "{}: Expected a Number literal after expression, found \"{}\"",
                 self.at_which_line(&found),
                 found.get_lexeme()
             ),
             Self::ExpectedToken { expected, found } => eprintln!(
-                "{}: Expected '{:?} after expression, found {}' ",
+                "{}: Expected '{:?}' after expression, found \"{}\" ",
                 self.at_which_line(&found),
                 // TODO, impl TokenType::as_str()
                 expected,

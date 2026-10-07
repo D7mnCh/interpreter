@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
-// TODO give variants values, maybe fields  i
+// TODO give variants values, maybe fields like in ParseError's varients
 pub enum ScanError {
     UnexpectedLexeme(char),
     UnterminatedString,

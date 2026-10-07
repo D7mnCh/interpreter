@@ -1,5 +1,6 @@
 # Parsing
-- parsing's job is to produce an AST
+- parser job is to produce "valid" AST, if it not valid then will hit a `syntax error`
+- parser job is not to detect type check
 - the parser may misenderstand the user's code(it can generate valid AST), the parser should track which rule a token belong into in order to generate a "correct" AST
 - an incorrect AST is caused by incorrect evaluation of operations
 - we solve this problem by defining precedence and assosiativity for the operators, implies making the expression rule more specific (making a subexpression)
