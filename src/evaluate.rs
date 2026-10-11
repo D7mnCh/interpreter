@@ -14,8 +14,10 @@ enum LoxType {
     Nil,
 }
 
+// use ADT to throw error with info
 enum RuntimeError {
     BinaryOpMismatedTypes,
+    BinaryOpDividedByZero,
     UnaryOpInvalidNumber,
     UnaryOpInvalidBool,
 }
@@ -34,6 +36,7 @@ impl LoxType {
         };
     }
 
+    // NOTE maybe make this as a method on Op ?
     fn handle_binary_op(
         left: Box<Expr>,
         op: Op,
@@ -48,7 +51,6 @@ impl LoxType {
                 if !Self::binary_op_are_both_numbers(&left, &right) {
                     return Err(RuntimeError::BinaryOpMismatedTypes);
                 }
-
                 let (left, right) = Self::extracts_binary_operands_numbers(right, left);
                 Ok(LoxType::Number(left - right))
             }
@@ -56,7 +58,6 @@ impl LoxType {
                 if !Self::binary_op_are_both_numbers(&left, &right) {
                     return Err(RuntimeError::BinaryOpMismatedTypes);
                 }
-
                 let (left, right) = Self::extracts_binary_operands_numbers(right, left);
                 Ok(LoxType::Number(left * right))
             }
@@ -64,8 +65,10 @@ impl LoxType {
                 if !Self::binary_op_are_both_numbers(&left, &right) {
                     return Err(RuntimeError::BinaryOpMismatedTypes);
                 }
-
                 let (left, right) = Self::extracts_binary_operands_numbers(right, left);
+                if right.is_nan() {
+                    return Err(RuntimeError::BinaryOpDividedByZero);
+                }
                 Ok(LoxType::Number(left / right))
             }
             Op::Add => {
@@ -80,16 +83,64 @@ impl LoxType {
                 }
             }
 
-            // TODO
             // logical op, operation between bool and bool
-            Op::Lt => todo!(),
-            Op::Le => todo!(),
-            Op::Gt => todo!(),
-            Op::Ge => todo!(),
-            Op::EqEq => todo!(),
-            Op::Ne => todo!(),
-            Op::And => todo!(),
-            Op::Or => todo!(),
+            Op::Lt => {
+                if !Self::binary_op_are_both_same_types(&left, &right) {
+                    return Err(RuntimeError::BinaryOpMismatedTypes);
+                }
+                let (left, right) = Self::extracts_binary_operands_bools(right, left);
+                Ok(LoxType::Bool(left < right))
+            }
+            Op::Le => {
+                if !Self::binary_op_are_both_same_types(&left, &right) {
+                    return Err(RuntimeError::BinaryOpMismatedTypes);
+                }
+                let (left, right) = Self::extracts_binary_operands_bools(right, left);
+                Ok(LoxType::Bool(left <= right))
+            }
+            Op::Gt => {
+                if !Self::binary_op_are_both_same_types(&left, &right) {
+                    return Err(RuntimeError::BinaryOpMismatedTypes);
+                }
+                let (left, right) = Self::extracts_binary_operands_bools(right, left);
+                Ok(LoxType::Bool(left > right))
+            }
+            Op::Ge => {
+                if !Self::binary_op_are_both_same_types(&left, &right) {
+                    return Err(RuntimeError::BinaryOpMismatedTypes);
+                }
+                let (left, right) = Self::extracts_binary_operands_bools(right, left);
+                Ok(LoxType::Bool(left >= right))
+            }
+            Op::EqEq => {
+                if !Self::binary_op_are_both_same_types(&left, &right) {
+                    return Err(RuntimeError::BinaryOpMismatedTypes);
+                }
+                let (left, right) = Self::extracts_binary_operands_bools(right, left);
+                Ok(LoxType::Bool(left == right))
+            }
+            Op::Ne => {
+                if !Self::binary_op_are_both_same_types(&left, &right) {
+                    return Err(RuntimeError::BinaryOpMismatedTypes);
+                }
+                let (left, right) = Self::extracts_binary_operands_bools(right, left);
+                Ok(LoxType::Bool(left != right))
+            }
+            Op::And => {
+                if !Self::binary_op_are_both_same_types(&left, &right) {
+                    return Err(RuntimeError::BinaryOpMismatedTypes);
+                }
+
+                let (left, right) = Self::extracts_binary_operands_bools(right, left);
+                Ok(LoxType::Bool(left && right))
+            }
+            Op::Or => {
+                if !Self::binary_op_are_both_same_types(&left, &right) {
+                    return Err(RuntimeError::BinaryOpMismatedTypes);
+                }
+                let (left, right) = Self::extracts_binary_operands_bools(right, left);
+                Ok(LoxType::Bool(left || right))
+            }
         }
     }
 
@@ -116,8 +167,20 @@ impl LoxType {
                 (liter_left, liter_right)
             }
             _ => unreachable!(
-                "must must handle if both binary operands are numbers before calling\
+                "must handle if both binary operands are numbers before calling \
                 extracts_binary_operands_numbers()"
+            ),
+        };
+
+        (left, right)
+    }
+
+    fn extracts_binary_operands_bools(right: LoxType, left: LoxType) -> (bool, bool) {
+        let (left, right) = match (left, right) {
+            (LoxType::Bool(liter_left), LoxType::Bool(liter_right)) => (liter_left, liter_right),
+            _ => unreachable!(
+                "must handle if both binary operands are numbers before calling \
+                    extracts_binary_operands_numbers()"
             ),
         };
 
@@ -144,5 +207,14 @@ impl LoxType {
 
     fn binary_op_are_both_strings(left: &LoxType, right: &LoxType) -> bool {
         matches!((left, right), (LoxType::String(_), LoxType::String(_)))
+    }
+    fn binary_op_are_both_same_types(left: &LoxType, right: &LoxType) -> bool {
+        matches!(
+            (left, right),
+            (LoxType::Bool(_), LoxType::Bool(_))
+                | (LoxType::String(_), LoxType::String(_))
+                | (LoxType::Nil, LoxType::Nil)
+                | (LoxType::Number(_), LoxType::Number(_))
+        )
     }
 }
