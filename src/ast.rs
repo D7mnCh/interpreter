@@ -1,5 +1,4 @@
 /*
-- TODO turns this formal grammar rust impl using enums
 expression     → literal
                | unary
                | binary

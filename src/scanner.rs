@@ -1,5 +1,6 @@
 /*
 - TODO need rewrite to make i more idiomatic rust(using rust std/features)
+- TODO tests
 - impl pretty for scanner
 - https://github.com/vladmonea/crusty_interpreter/blob/main/docs/Project5_Parsing.md
 - https://github.com/vladmonea/crusty_interpreter/blob/main/lux/src/tokenize.rs
@@ -8,7 +9,6 @@
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
-// TODO give variants values, maybe fields like in ParseError's varients
 pub enum ScanError {
     UnexpectedLexeme(char),
     UnterminatedString,
@@ -145,7 +145,7 @@ impl<'a> Scanner<'a> {
                     return Some(self.scan_ident());
                 }
 
-                Some(Err(ScanError::UnexpectedLexeme(self.peek_current())))
+                Some(Err(ScanError::UnexpectedLexeme(c)))
             }
         };
     }
@@ -305,7 +305,9 @@ impl<'a> Scanner<'a> {
             let token_type = match scan_result {
                 Ok(token_type) => token_type,
                 Err(scan_error) => {
-                    scan_error.report(self.line, self.current_char_indx + 1);
+                    // no need to +1 for self.current_char_indx to get column, cuz when
+                    //calling self.scan_tokens(), it will +1 self.current_char_indx
+                    scan_error.report(self.line, self.current_char_indx);
                     continue;
                 }
             };

@@ -1,7 +1,7 @@
 # Representing code
 - when turning the source code into tokens, you will transform it into a high-level representation(series of tokens)
 - we gotta build a abstract-syntax-tree(AST) that describes any valid syntax pattern for our language
-- that AST is more complexe than that scanner's output, that will allow me turn theme into a bunch of meaningfull data(that where chapter names came from, we will represent our code as a data)
+- that AST is more complexe than that scanner's output, that will allow me turn theme into a bunch of meaningfull data(that where chapter name came from, we will represent our code as a data)
 - to write a `parser`, need to turn that high-level representation into more richer and complex one(AST)
 - A `formal grammar` takes a set of atomic pieces it calls its “alphabet”(complete set of letters). Then it defines a (usually infinite) set of “strings” that are “in” the grammar. Each string is a sequence of “letters”(specific symbols) in the alphabet
 - formal grammar job is to specifies which strings are valid and which aren't
@@ -15,5 +15,5 @@
     - `+` allow recurion at least once or more
     - `*` allow recurion zero or more
     - `?` allow recurion zero or once
-- `pretty printer` is turning AST into valid language syntax
-- after turning the code into ast (parser job)(TODO)
+- `pretty printer` is turning AST into readable string that is used for debugging
+- after turning the code into ast (parser's job)

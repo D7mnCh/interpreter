@@ -1,3 +1,5 @@
+// TODO tests
+
 /*
 - evaluate() function produce a value from an expr, you'll return the type of that value,
 that type is one of lox's 4 types(number,string,bool,nil), so make an enum that represent
