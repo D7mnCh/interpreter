@@ -15,6 +15,7 @@ TODO
     - impl tests
 NOTE
     - error hanlding is kinda bad
+    - how do i get a bool or nil ?
 */
 
 use super::ast::{Expr, Op, UnaryOp};
@@ -175,6 +176,11 @@ impl Parser {
         }
         None
     }
+
+    // TODO
+    fn pretty(&self) -> String {
+        todo!()
+    }
 }
 
 // the actuall parser impl using the recursion descenet method
@@ -287,7 +293,7 @@ impl Parser {
     }
 
     // for now parses only one expr
-    // if self.expression() return an error, i should not have an Expr but None
+    // if self.expression() return an error, i should not have an Expr but None(map Err to None)
     pub fn parse(&mut self) -> Option<Expr> {
         return match self.expression() {
             Ok(expr) => Some(expr),

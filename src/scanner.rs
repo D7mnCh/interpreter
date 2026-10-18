@@ -1,5 +1,6 @@
 /*
 - TODO need rewrite to make i more idiomatic rust(using rust std/features)
+- impl pretty for scanner
 - https://github.com/vladmonea/crusty_interpreter/blob/main/docs/Project5_Parsing.md
 - https://github.com/vladmonea/crusty_interpreter/blob/main/lux/src/tokenize.rs
 */
@@ -58,6 +59,7 @@ impl<'a> Scanner<'a> {
         //compacted together like var=10, i've to impl the current approach and i think it make the
         //code a bit noisy, solution is to scan char by char without using lines()
         let character = self.next_char();
+        // TODO didn't conevert "true", "false", "&&", "||" to TokenType
         return match character {
             '(' => Some(Ok(TokenType::LeftParen)),
             ')' => Some(Ok(TokenType::RightParen)),
@@ -132,7 +134,8 @@ impl<'a> Scanner<'a> {
             c => {
                 // handle numbers
                 // i was doing self.peek_current().is_numeric instead of 'c', but i do forget that
-                //i increamnt current_char_indx at the begging of the function
+                //i increamnt current_char_indx at the begging of the function so when
+                //doing self.peek_current(), i am actually peeking to next char instead of current char
                 if c.is_numeric() {
                     return Some(self.scan_num());
                 }

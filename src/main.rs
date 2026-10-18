@@ -1,4 +1,4 @@
-use interpreter::{parser::Parser, scanner::Scanner};
+use interpreter::{evaluate::LoxType, parser::Parser, scanner::Scanner};
 use std::{
     env, fs,
     io::{self, Result},
@@ -51,5 +51,8 @@ fn run(source: String) {
     let expr_kind = parser.parse();
     if let Some(expr) = expr_kind {
         println!("expr -> {}", expr.pretty());
+        if let Some(lox_value) = LoxType::interprete(expr) {
+            println!("lox_value -> {}", lox_value.pretty());
+        }
     }
 }
