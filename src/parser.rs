@@ -11,7 +11,7 @@ primary        → NUMBER | STRING | "true" | "false" | "nil"
 */
 
 /*
-TODO
+TODO:
     - impl tests
 NOTE
     - error hanlding is kinda bad
@@ -72,13 +72,13 @@ impl ParseError {
             format!(
                 "[Parse Error] Line {}:{} at end:",
                 token.get_line(),
-                token.get_char()
+                token.get_lexeme_pos()
             )
         } else {
             format!(
                 "[Parse Error] Line {}:{} at \"{}\":",
                 token.get_line(),
-                token.get_char(),
+                token.get_lexeme_pos(),
                 token.get_lexeme()
             )
         }
@@ -92,10 +92,9 @@ impl ParseError {
                 found.get_lexeme()
             ),
             Self::ExpectedToken { expected, found } => eprintln!(
-                "{}: Expected '{:?}' after expression, found \"{}\" ",
+                "{}: Expected '{}' after expression, found '{}'",
                 self.at_which_line(&found),
-                // TODO, impl TokenType::as_str()
-                expected,
+                expected.as_str(),
                 found.get_lexeme()
             ),
             Self::ExpectedExpr { found } => {
@@ -177,7 +176,7 @@ impl Parser {
         None
     }
 
-    // TODO
+    // TODO:
     fn pretty(&self) -> String {
         todo!()
     }

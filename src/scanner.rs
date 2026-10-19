@@ -1,7 +1,7 @@
 /*
-- TODO need rewrite to make i more idiomatic rust(using rust std/features)
-- TODO tests
-- impl pretty for scanner
+- TODO: need rewrite to make i more idiomatic rust(using rust std/features)
+- TODO: tests
+- impl pretty for tokens
 - https://github.com/vladmonea/crusty_interpreter/blob/main/docs/Project5_Parsing.md
 - https://github.com/vladmonea/crusty_interpreter/blob/main/lux/src/tokenize.rs
 */
@@ -54,12 +54,13 @@ impl<'a> Scanner<'a> {
     }
 
     // &mut needed to mute self.current_char_indx
+    // used Option to ignore some lexemes e.g '\n','//*', ...
     fn scan_tokens(&mut self) -> Option<Result<TokenType, ScanError>> {
         //i was scanning source with lines() method, i face a problem where if the lexeme is
         //compacted together like var=10, i've to impl the current approach and i think it make the
         //code a bit noisy, solution is to scan char by char without using lines()
         let character = self.next_char();
-        // TODO didn't conevert "true", "false", "&&", "||" to TokenType
+        // TODO: didn't conevert "true", "false", "&&", "||" to TokenType
         return match character {
             '(' => Some(Ok(TokenType::LeftParen)),
             ')' => Some(Ok(TokenType::RightParen)),
@@ -322,7 +323,9 @@ impl<'a> Scanner<'a> {
                 lexeme,
                 literal,
                 self.line,
-                self.current_char_indx + 1,
+                // no need to +1 for self.current_char_indx to get column, cuz when
+                //calling self.scan_tokens(), it will +1 self.current_char_indx
+                self.start_lexeme_indx + 1,
             );
             self.tokens.push(token);
         }
@@ -332,7 +335,7 @@ impl<'a> Scanner<'a> {
             "".to_owned(),
             "".to_owned(),
             self.line,
-            self.current_char_indx,
+            self.start_lexeme_indx + 1,
         );
         self.tokens.push(token);
 
@@ -347,7 +350,7 @@ pub struct Token {
     lexeme: String,
     literal: String,
     line: usize,
-    current_char: usize,
+    lexeme_pos: usize,
 }
 
 impl Token {
@@ -358,14 +361,14 @@ impl Token {
         lexeme: String,
         literal: String, // NOTE i think it should be generic type, not a String
         line: usize,
-        current_char: usize,
+        lexeme_pos: usize,
     ) -> Self {
         Self {
             token_type,
             lexeme,
             literal,
             line,
-            current_char,
+            lexeme_pos,
         }
     }
 
@@ -385,8 +388,8 @@ impl Token {
         self.line
     }
 
-    pub fn get_char(&self) -> usize {
-        self.current_char
+    pub fn get_lexeme_pos(&self) -> usize {
+        self.lexeme_pos
     }
 }
 
@@ -402,7 +405,8 @@ pub enum TokenType {
     Semicolon,
     Slash,
     Asterisk,
-    Eof, // needed in parser
+    // needed in parser
+    Eof,
 
     // one or two character tokens.
     Bang, // -> !
@@ -439,4 +443,57 @@ pub enum TokenType {
     SelfKeyword,
     Var,
     While,
+}
+
+impl TokenType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            // Single-character tokens.
+            Self::LeftParen => "(",
+            Self::RightParen => ")",
+            Self::Comma => ",",
+            Self::Dot => ".",
+            Self::Minus => "-",
+            Self::Plus => "+",
+            Self::Semicolon => ";",
+            Self::Slash => "/",
+            Self::Asterisk => "*",
+            Self::Eof => "EOF",
+
+            // One or two character tokens.
+            Self::Bang => "!",
+            Self::BangEqual => "!=",
+            Self::Equal => "=",
+            Self::EqualEqual => "==",
+            Self::Greater => ">",
+            Self::GreaterEqual => ">=",
+            Self::Less => "<",
+            Self::LessEqual => "<=",
+
+            // Literals.
+            Self::Identifier => "identifier",
+            Self::StringLiter => "string",
+            Self::Number => "number",
+
+            // Keywords.
+            Self::Func => "func",
+            Self::Then => "then",
+            Self::End => "end",
+            Self::Do => "do",
+            Self::And => "and",
+            Self::Or => "or",
+            Self::Struct => "struct",
+            Self::If => "if",
+            Self::Else => "else",
+            Self::False => "false",
+            Self::True => "true",
+            Self::For => "for",
+            Self::Nil => "nil",
+            Self::Print => "print",
+            Self::Return => "return",
+            Self::SelfKeyword => "self",
+            Self::Var => "var",
+            Self::While => "while",
+        }
+    }
 }

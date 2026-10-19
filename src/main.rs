@@ -37,18 +37,18 @@ fn run_prompt() {
 fn run(source: String) {
     let source_as_chars = &source.chars().collect::<Vec<char>>();
     let mut scanner = Scanner::new(&source_as_chars);
-
     let tokens = scanner.tokenize();
 
-    print!("tokens -> ");
+    let mut token_types: Vec<&str> = Vec::new();
     for token in tokens.clone().into_iter() {
-        let token_type = token.get_token_type();
-        print!("{token_type:?},");
+        let token_type = token.get_token_type().as_str();
+        token_types.push(token_type);
     }
-    println!();
+    println!("tokens -> {token_types:?}");
 
     let mut parser = Parser::new(tokens);
     let expr_kind = parser.parse();
+
     if let Some(expr) = expr_kind {
         println!("expr -> {}", expr.pretty());
         if let Some(lox_value) = LoxType::interprete(expr) {

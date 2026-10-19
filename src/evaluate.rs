@@ -1,4 +1,4 @@
-// TODO tests
+// TODO: tests
 
 /*
 - evaluate() function produce a value from an expr, you'll return the type of that value,
@@ -34,7 +34,7 @@ impl RuntimeError {
     }
 }
 
-// TODO impl pretty() for LoxType
+// TODO: impl pretty() for LoxType
 #[derive(PartialEq, PartialOrd)]
 pub enum LoxType {
     Number(f32),

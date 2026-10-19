@@ -72,7 +72,7 @@ impl Expr {
             Expr::StringLiter(value) => value.clone(),
             Expr::Nil => "nil".to_string(),
             Expr::Binary { right, op, left } => {
-                format!("({1} {0} {2})", right.pretty(), op.as_str(), left.pretty())
+                format!("({1} {2} {0})", right.pretty(), op.as_str(), left.pretty())
             }
             Expr::Unary { right, op } => format!("({1} {0})", right.pretty(), op.as_str()),
             Expr::Grouping(expr) => format!("(group {})", expr.pretty()),
