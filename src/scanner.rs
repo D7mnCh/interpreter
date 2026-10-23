@@ -31,14 +31,20 @@ impl ScanError {
     }
 }
 
+// NOTE Scanner can be an iterator, use https://github.com/jonhoo/lox/blob/master/src/lex.rs#L212C1-L212C36
 pub struct Scanner<'a> {
     // &'a [char] is better then &'a str, former will allow working with utf8 chars,
     //and can iter without out of the box (cuz it's a slice)
     source: &'a [char], // view
     tokens: Vec<Token>,
     // depend on current_char_indx
-    start_lexeme_indx: usize,
     current_char_indx: usize,
+
+    // NOTE I think i can depend on only one of these two
+    start_lexeme_indx: usize,
+    // used to show column in interpreter errors
+    lexeme_pos_current_line: usize,
+
     line: usize,
 }
 
@@ -49,6 +55,7 @@ impl<'a> Scanner<'a> {
             tokens: Vec::new(),
             start_lexeme_indx: 0,
             current_char_indx: 0,
+            lexeme_pos_current_line: 1,
             line: 1,
         }
     }
@@ -60,7 +67,7 @@ impl<'a> Scanner<'a> {
         //compacted together like var=10, i've to impl the current approach and i think it make the
         //code a bit noisy, solution is to scan char by char without using lines()
         let character = self.next_char();
-        // TODO: didn't conevert "true", "false", "&&", "||" to TokenType
+        // TODO: didn't conevert "true", "false", "&&", "||", "then", "do", "end" to TokenType
         return match character {
             '(' => Some(Ok(TokenType::LeftParen)),
             ')' => Some(Ok(TokenType::RightParen)),
@@ -74,28 +81,28 @@ impl<'a> Scanner<'a> {
             '+' => Some(Ok(TokenType::Plus)),
 
             '=' => {
-                if self.current_char_match('=') {
+                if self.match_current_char('=') {
                     Some(Ok(TokenType::EqualEqual))
                 } else {
                     Some(Ok(TokenType::Equal))
                 }
             }
             '!' => {
-                if self.current_char_match('=') {
+                if self.match_current_char('=') {
                     Some(Ok(TokenType::BangEqual))
                 } else {
                     Some(Ok(TokenType::Bang))
                 }
             }
             '>' => {
-                if self.current_char_match('=') {
+                if self.match_current_char('=') {
                     Some(Ok(TokenType::GreaterEqual))
                 } else {
                     Some(Ok(TokenType::Greater))
                 }
             }
             '<' => {
-                if self.current_char_match('=') {
+                if self.match_current_char('=') {
                     Some(Ok(TokenType::LessEqual))
                 } else {
                     Some(Ok(TokenType::Less))
@@ -103,40 +110,26 @@ impl<'a> Scanner<'a> {
             }
             '"' => Some(self.scan_string()),
             '/' => {
-                // handle one line comments
-                if self.current_char_match('/') {
-                    // didn't consume \n, consumed later after next call of scan_token()
-                    while self.peek_current() != '\n' {
-                        let _ = self.next_char();
-                    }
-                    // handle multi line comments
-                } else if self.current_char_match('*') {
-                    while self.peek_current() != '*' && self.peek_next() != '/' {
-                        if self.peek_current() == '\n' {
-                            self.line += 1;
-                        }
-                        let _ = self.next_char();
-                    }
-                    // consume '*' and '/'
-                    let _ = self.next_char();
-                    let _ = self.next_char();
-                } else {
+                if !self.is_comment() {
                     return Some(Ok(TokenType::Slash));
                 }
-
                 None
             }
             '\n' => {
                 self.line += 1;
+                self.lexeme_pos_current_line = 0;
                 None
             }
+            // you did advance char eariler (as usual -.-)
             c if c.is_whitespace() => None,
             // handle numbers and identifiers
             c => {
+                /*
+                - i was doing self.peek_current().is_numeric instead of c.is_numeric(), but i do forget that
+                i increamnt current_char_indx at the begging of the function so when doing self.peek_current(),
+                i am actually peeking to next char instead of current char
+                */
                 // handle numbers
-                // i was doing self.peek_current().is_numeric instead of 'c', but i do forget that
-                //i increamnt current_char_indx at the begging of the function so when
-                //doing self.peek_current(), i am actually peeking to next char instead of current char
                 if c.is_numeric() {
                     return Some(self.scan_num());
                 }
@@ -150,6 +143,41 @@ impl<'a> Scanner<'a> {
             }
         };
     }
+
+    /*
+    NOTE
+    - i am (kinda) want to have scan_comments() instead of is_comment()
+    - maybe make scopped enum
+        - is_comment() returns an enum one of three possible choices, then pattern match
+        - scan_comment() main logic
+    */
+    fn is_comment(&mut self) -> bool {
+        // handle one line comments
+        if self.match_current_char('/') {
+            // didn't consume "\n", will get consumed later after next call of scan_token()
+            while self.peek_current() != '\n' {
+                let _ = self.next_char();
+            }
+            // handle multi line comments
+        } else if self.match_current_char('*') {
+            while self.peek_current() != '*' && self.peek_next() != '/' {
+                if self.peek_current() == '\n' {
+                    self.line += 1;
+                    self.lexeme_pos_current_line = 0;
+                }
+                let _ = self.next_char();
+            }
+            // consume '*' and '/'
+            let _ = self.next_char();
+            let _ = self.next_char();
+        } else {
+            return false;
+        }
+
+        true
+    }
+
+    // NOTE scan can means "search for more tokens" or "take a look on current token"
 
     // NOTE didn't handle any scan errors
     fn scan_ident(&mut self) -> Result<TokenType, ScanError> {
@@ -258,30 +286,30 @@ impl<'a> Scanner<'a> {
 
     // peek will not consume/increment current char/char index like next_char
     fn peek_current(&self) -> char {
-        // NOTE if unwrap get error => out of bound index
-        return *self.source.get(self.current_char_indx).unwrap();
+        return self.source[self.current_char_indx];
     }
 
     fn peek_next(&self) -> char {
-        return *self.source.get(self.current_char_indx + 1).unwrap();
+        return self.source[self.current_char_indx + 1];
     }
 
     // the returned char is the current character before increament current_char_indx
     fn next_char(&mut self) -> char {
-        let character = self.source.get(self.current_char_indx).unwrap();
+        let character = self.source[self.current_char_indx];
         self.current_char_indx += 1;
 
-        *character
+        character
     }
 
-    fn current_char_match(&mut self, expected: char) -> bool {
-        // if didn't handle, i'll get out of index
+    // you did return previews char and advance current_char_indx
+    fn match_current_char(&mut self, expected: char) -> bool {
+        // if didn't handle eof, i'll get out of bound index
         if self.is_eof() {
             return false;
         }
 
-        let character = self.source.get(self.current_char_indx).unwrap();
-        if *character != expected {
+        let character = self.source[self.current_char_indx];
+        if character != expected {
             return false;
         }
 
@@ -296,19 +324,20 @@ impl<'a> Scanner<'a> {
     }
 
     // NOTE should have self.tokenize(&mut self) should push result of
-    //self.scan_tokens(&self) and not the latter cuz used only for scan(no mutatioN)
+    //self.scan_tokens(&self) and not the latter cuz latter used only for scanning(no mutation)
     pub fn tokenize(&mut self) -> Vec<Token> {
         while !self.is_eof() {
+            let start_lexeme_indx_prev = self.start_lexeme_indx;
             self.start_lexeme_indx = self.current_char_indx;
+            self.lexeme_pos_current_line += self.start_lexeme_indx - start_lexeme_indx_prev;
+
             let Some(scan_result) = self.scan_tokens() else {
                 continue;
             };
             let token_type = match scan_result {
                 Ok(token_type) => token_type,
                 Err(scan_error) => {
-                    // no need to +1 for self.current_char_indx to get column, cuz when
-                    //calling self.scan_tokens(), it will +1 self.current_char_indx
-                    scan_error.report(self.line, self.current_char_indx);
+                    scan_error.report(self.line, self.lexeme_pos_current_line);
                     continue;
                 }
             };
@@ -317,25 +346,22 @@ impl<'a> Scanner<'a> {
                 .iter()
                 .collect();
             let literal = self.get_literal(&token_type);
-
             let token = Token::new(
                 token_type,
                 lexeme,
                 literal,
                 self.line,
-                // no need to +1 for self.current_char_indx to get column, cuz when
-                //calling self.scan_tokens(), it will +1 self.current_char_indx
-                self.start_lexeme_indx + 1,
+                self.lexeme_pos_current_line,
             );
             self.tokens.push(token);
         }
 
         let token = Token::new(
             TokenType::Eof,
-            "".to_owned(),
-            "".to_owned(),
+            String::new(),
+            String::new(),
             self.line,
-            self.start_lexeme_indx + 1,
+            self.start_lexeme_indx,
         );
         self.tokens.push(token);
 

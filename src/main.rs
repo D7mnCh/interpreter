@@ -10,7 +10,7 @@ fn main() -> Result<()> {
         run_prompt();
     } else if args.len() == 2 {
         if args[1] == "--help" {
-            println!("Usage: rlox file.rlox");
+            println!("Usage: cargo run -- file.rlox");
         } else {
             let source = fs::read_to_string(args[1].clone())?;
             run(source);
