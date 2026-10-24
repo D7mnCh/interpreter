@@ -18,23 +18,27 @@ NOTE
     - how do i get a bool or nil ?
 */
 
-use super::ast::{Expr, Op, UnaryOp};
+use super::ast::{BinaryOp, Expr, UnaryOp};
 use super::scanner::{Token, TokenType};
 
-impl From<TokenType> for Op {
+impl From<TokenType> for BinaryOp {
     fn from(token_type: TokenType) -> Self {
         match token_type {
-            TokenType::Plus => Op::Add,
-            TokenType::Minus => Op::Sub,
-            TokenType::Slash => Op::Div,
-            TokenType::Asterisk => Op::Mul,
-            TokenType::BangEqual => Op::Ne,
-            TokenType::EqualEqual => Op::EqEq,
-            TokenType::Less => Op::Lt,
-            TokenType::LessEqual => Op::Le,
-            TokenType::Greater => Op::Gt,
-            TokenType::GreaterEqual => Op::Ge,
-            _ => panic!("caller should only convert to Op if token's is an operation variant"),
+            TokenType::Plus => BinaryOp::Add,
+            TokenType::Minus => BinaryOp::Sub,
+            TokenType::Slash => BinaryOp::Div,
+            TokenType::Asterisk => BinaryOp::Mul,
+            TokenType::BangEqual => BinaryOp::Ne,
+            TokenType::EqualEqual => BinaryOp::EqEq,
+            TokenType::Less => BinaryOp::Lt,
+            TokenType::LessEqual => BinaryOp::Le,
+            TokenType::Greater => BinaryOp::Gt,
+            TokenType::GreaterEqual => BinaryOp::Ge,
+            _ => {
+                panic!(
+                    "caller should only convert to BinaryOp if TokenType is an operation variant"
+                )
+            }
         }
     }
 }

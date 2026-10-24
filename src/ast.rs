@@ -25,7 +25,7 @@ pub enum Expr {
     },
     Binary {
         left: Box<Expr>,
-        op: Op,
+        op: BinaryOp,
         right: Box<Expr>,
     },
     Grouping(Box<Expr>), /* ( ) */
@@ -45,7 +45,7 @@ impl Expr {
     pub fn nil() -> Expr {
         Expr::Nil
     }
-    pub fn binary(left: Expr, op: Op, right: Expr) -> Expr {
+    pub fn binary(left: Expr, op: BinaryOp, right: Expr) -> Expr {
         Expr::Binary {
             right: right.into(),
             op,
@@ -96,7 +96,8 @@ impl UnaryOp {
 }
 
 #[derive(Debug)]
-pub enum Op {
+// contains arithimitc, logical and comparison operators
+pub enum BinaryOp {
     Add,
     Sub,
     Div,
@@ -111,7 +112,7 @@ pub enum Op {
     Or,
 }
 
-impl Op {
+impl BinaryOp {
     fn as_str(&self) -> &'static str {
         match self {
             Self::Add => "+",
@@ -135,17 +136,17 @@ fn creating_an_exprs() {
     // (+ 1 1) -> 1 + 1
     // as you notice, it's kinda look like lisp :O
 
-    let expr_1 = Expr::binary(Expr::num_liter(1.), Op::Add, Expr::num_liter(1.));
+    let expr_1 = Expr::binary(Expr::num_liter(1.), BinaryOp::Add, Expr::num_liter(1.));
     assert_eq!(expr_1.pretty(), "(+ 1 1)".to_string());
 
     // (/ (group (+ 1 1)) 2) -> (1 + 1) / 2
     let expr_2 = Expr::binary(
         Expr::grouping(Expr::binary(
             Expr::num_liter(1.),
-            Op::Add,
+            BinaryOp::Add,
             Expr::num_liter(1.),
         )),
-        Op::Div,
+        BinaryOp::Div,
         Expr::num_liter(2.),
     );
     assert_eq!(expr_2.pretty(), "(/ (group (+ 1 1)) 2)".to_string());

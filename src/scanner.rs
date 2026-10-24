@@ -63,16 +63,13 @@ impl<'a> Scanner<'a> {
     // &mut needed to mute self.current_char_indx
     // used Option to ignore some lexemes e.g '\n','//*', ...
     fn scan_tokens(&mut self) -> Option<Result<TokenType, ScanError>> {
-        //i was scanning source with lines() method, i face a problem where if the lexeme is
+        // i was scanning source with lines() method, i face a problem where if the lexeme is
         //compacted together like var=10, i've to impl the current approach and i think it make the
         //code a bit noisy, solution is to scan char by char without using lines()
         let character = self.next_char();
-        // TODO: didn't conevert "true", "false", "&&", "||", "then", "do", "end" to TokenType
         return match character {
             '(' => Some(Ok(TokenType::LeftParen)),
             ')' => Some(Ok(TokenType::RightParen)),
-            //'{' => Some(Ok(TokenType::LeftBracet)),
-            //'}' => Some(Ok(TokenType::RightBracet)),
             ',' => Some(Ok(TokenType::Comma)),
             '.' => Some(Ok(TokenType::Dot)),
             ';' => Some(Ok(TokenType::Semicolon)),
@@ -120,7 +117,6 @@ impl<'a> Scanner<'a> {
                 self.lexeme_pos_current_line = 0;
                 None
             }
-            // you did advance char eariler (as usual -.-)
             c if c.is_whitespace() => None,
             // handle numbers and identifiers
             c => {
@@ -203,7 +199,7 @@ impl<'a> Scanner<'a> {
             ("if".to_string(), TokenType::If),
             ("else".to_string(), TokenType::Else),
             ("false".to_string(), TokenType::False),
-            ("True".to_string(), TokenType::True),
+            ("true".to_string(), TokenType::True),
             ("func".to_string(), TokenType::Func),
             ("for".to_string(), TokenType::For),
             ("nil".to_string(), TokenType::Nil),

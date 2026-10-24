@@ -6,8 +6,7 @@ that type is one of lox's 4 types(number,string,bool,nil), so make an enum that 
 one of those 4 types
 */
 
-use super::ast::Expr;
-use crate::ast::{Op, UnaryOp};
+use crate::ast::{BinaryOp, Expr, UnaryOp};
 
 enum RuntimeError {
     BinaryOpMismatedTypes,
@@ -70,7 +69,7 @@ impl LoxType {
     // NOTE maybe make this as a method on Op ?
     fn handle_binary_op(
         left: Box<Expr>,
-        op: Op,
+        op: BinaryOp,
         right: Box<Expr>,
     ) -> Result<LoxType, RuntimeError> {
         let right = LoxType::evaluate(*right)?;
@@ -78,21 +77,21 @@ impl LoxType {
 
         match op {
             // handle arithmitic operations
-            Op::Sub => {
+            BinaryOp::Sub => {
                 if !Self::binary_op_are_both_numbers(&left, &right) {
                     return Err(RuntimeError::BinaryOpMismatedTypes);
                 }
                 let (left, right) = Self::extracts_binary_operands_numbers(right, left);
                 Ok(LoxType::Number(left - right))
             }
-            Op::Mul => {
+            BinaryOp::Mul => {
                 if !Self::binary_op_are_both_numbers(&left, &right) {
                     return Err(RuntimeError::BinaryOpMismatedTypes);
                 }
                 let (left, right) = Self::extracts_binary_operands_numbers(right, left);
                 Ok(LoxType::Number(left * right))
             }
-            Op::Div => {
+            BinaryOp::Div => {
                 if !Self::binary_op_are_both_numbers(&left, &right) {
                     return Err(RuntimeError::BinaryOpMismatedTypes);
                 }
@@ -102,7 +101,7 @@ impl LoxType {
                 }
                 Ok(LoxType::Number(left / right))
             }
-            Op::Add => {
+            BinaryOp::Add => {
                 if Self::binary_op_are_both_numbers(&left, &right) {
                     let (left, right) = Self::extracts_binary_operands_numbers(right, left);
                     return Ok(LoxType::Number(left + right));
@@ -115,31 +114,31 @@ impl LoxType {
             }
 
             // handle comparison operations
-            Op::Lt => {
+            BinaryOp::Lt => {
                 if !Self::binary_op_are_both_same_types(&left, &right) {
                     return Err(RuntimeError::BinaryOpMismatedTypes);
                 }
                 Ok(LoxType::Bool(left < right))
             }
-            Op::Le => {
+            BinaryOp::Le => {
                 if !Self::binary_op_are_both_same_types(&left, &right) {
                     return Err(RuntimeError::BinaryOpMismatedTypes);
                 }
                 Ok(LoxType::Bool(left <= right))
             }
-            Op::Gt => {
+            BinaryOp::Gt => {
                 if !Self::binary_op_are_both_same_types(&left, &right) {
                     return Err(RuntimeError::BinaryOpMismatedTypes);
                 }
                 Ok(LoxType::Bool(left > right))
             }
-            Op::Ge => {
+            BinaryOp::Ge => {
                 if !Self::binary_op_are_both_same_types(&left, &right) {
                     return Err(RuntimeError::BinaryOpMismatedTypes);
                 }
                 Ok(LoxType::Bool(left >= right))
             }
-            Op::EqEq => {
+            BinaryOp::EqEq => {
                 if !Self::binary_op_are_both_same_types(&left, &right) {
                     return Err(RuntimeError::BinaryOpMismatedTypes);
                 }
@@ -147,13 +146,13 @@ impl LoxType {
             }
 
             // logical operations
-            Op::Ne => {
+            BinaryOp::Ne => {
                 if !Self::binary_op_are_both_same_types(&left, &right) {
                     return Err(RuntimeError::BinaryOpMismatedTypes);
                 }
                 Ok(LoxType::Bool(left != right))
             }
-            Op::And => {
+            BinaryOp::And => {
                 if !Self::binary_op_are_both_bools(&left, &right) {
                     return Err(RuntimeError::BinaryOpMustBothBeBool);
                 }
@@ -161,7 +160,7 @@ impl LoxType {
                 let (left, right) = Self::extracts_binary_operands_bools(right, left);
                 Ok(LoxType::Bool(left && right))
             }
-            Op::Or => {
+            BinaryOp::Or => {
                 if !Self::binary_op_are_both_bools(&left, &right) {
                     return Err(RuntimeError::BinaryOpMustBothBeBool);
                 }
