@@ -1,4 +1,4 @@
-use interpreter::{evaluate::LoxType, parser::Parser, scanner::Scanner};
+use interpreter::{evaluate::LoxValue, parser::Parser, scanner::Scanner};
 use std::{
     env, fs,
     io::{self, Result},
@@ -39,6 +39,7 @@ fn run(source: String) {
     let mut scanner = Scanner::new(&source_as_chars);
     let tokens = scanner.tokenize();
 
+    // TODO impl from Tokens to get token_types
     let mut token_types: Vec<&str> = Vec::new();
     for token in tokens.clone().into_iter() {
         let token_type = token.get_token_type().as_str();
@@ -51,7 +52,7 @@ fn run(source: String) {
 
     if let Some(expr) = expr_kind {
         println!("expr -> {}", expr.pretty());
-        if let Some(lox_value) = LoxType::interprete(expr) {
+        if let Some(lox_value) = LoxValue::interpret(expr) {
             println!("lox_value -> {}", lox_value.pretty());
         }
     }

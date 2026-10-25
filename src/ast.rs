@@ -64,7 +64,7 @@ impl Expr {
 }
 
 impl Expr {
-    // pretty printer is going to represent AST rather then valid rlox(programing langauge) syntax
+    // pretty printer is going to represent AST in a pretty way
     pub fn pretty(&self) -> String {
         match self {
             Expr::NumLiter(value) => format!("{value}"),
@@ -72,7 +72,12 @@ impl Expr {
             Expr::StringLiter(value) => value.clone(),
             Expr::Nil => "nil".to_string(),
             Expr::Binary { right, op, left } => {
-                format!("({1} {2} {0})", right.pretty(), op.as_str(), left.pretty())
+                format!(
+                    "({op} {left} {right})",
+                    right = right.pretty(),
+                    op = op.as_str(),
+                    left = left.pretty()
+                )
             }
             Expr::Unary { right, op } => format!("({1} {0})", right.pretty(), op.as_str()),
             Expr::Grouping(expr) => format!("(group {})", expr.pretty()),

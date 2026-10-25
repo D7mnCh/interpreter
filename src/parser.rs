@@ -18,8 +18,10 @@ NOTE
     - how do i get a bool or nil ?
 */
 
-use super::ast::{BinaryOp, Expr, UnaryOp};
-use super::scanner::{Token, TokenType};
+use super::{
+    ast::{BinaryOp, Expr, UnaryOp},
+    scanner::{Token, TokenType},
+};
 
 impl From<TokenType> for BinaryOp {
     fn from(token_type: TokenType) -> Self {
@@ -181,6 +183,7 @@ impl Parser {
     }
 
     // TODO:
+    // NOTE: need tracking a thing to impl
     fn pretty(&self) -> String {
         todo!()
     }
@@ -249,7 +252,7 @@ impl Parser {
             let op = self.prev_token().get_token_type().into();
             let right = self.unary();
 
-            expr = Ok(Expr::binary(right?, op, left));
+            expr = Ok(Expr::binary(left, op, right?));
         }
 
         expr

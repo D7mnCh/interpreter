@@ -76,7 +76,6 @@ impl<'a> Scanner<'a> {
             '*' => Some(Ok(TokenType::Asterisk)),
             '-' => Some(Ok(TokenType::Minus)),
             '+' => Some(Ok(TokenType::Plus)),
-
             '=' => {
                 if self.match_current_char('=') {
                     Some(Ok(TokenType::EqualEqual))
