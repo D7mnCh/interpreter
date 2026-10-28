@@ -9,7 +9,7 @@ one of those 4 types
 
 use crate::ast::{BinaryOp, Expr, UnaryOp};
 
-enum RuntimeError {
+pub enum RuntimeError {
     BinaryOpInvalidArithmticOpaeration,
     BinaryOpInvalidComparison,
     BinaryOpDividedByZero,
@@ -21,7 +21,7 @@ enum RuntimeError {
 
 impl RuntimeError {
     // TODO: expand error msg
-    fn report(&self) {
+    pub fn report(&self) {
         match self {
             RuntimeError::BinaryOpInvalidArithmticOpaeration => {
                 println!("[Runtime Error]: Invalid arithmetic operation")
@@ -51,17 +51,7 @@ pub enum LoxValue {
 }
 
 impl LoxValue {
-    pub fn interpret(expr: Expr) -> Option<LoxValue> {
-        match Self::evaluate(expr) {
-            Ok(lox_type) => Some(lox_type),
-            Err(err) => {
-                err.report();
-                None
-            }
-        }
-    }
-
-    fn evaluate(expr: Expr) -> Result<LoxValue, RuntimeError> {
+    pub fn evaluate(expr: Expr) -> Result<LoxValue, RuntimeError> {
         return match expr {
             Expr::NumLiter(liter) => Ok(LoxValue::Number(liter)),
             Expr::StringLiter(liter) => Ok(LoxValue::String(liter)),

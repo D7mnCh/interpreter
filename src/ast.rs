@@ -11,9 +11,11 @@ operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
                | "+"  | "-"  | "*" | "/" ;
 */
 
+use std::fmt::Debug;
+
 // can't do Expr<T> cuz the recursion of Expr when choosing Literal(T) varient, all will have the
 //the same T value(and you don't want that)
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     NumLiter(f32),
     StringLiter(String),
@@ -85,7 +87,7 @@ impl Expr {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum UnaryOp {
     Neg,
     Not,
@@ -100,7 +102,7 @@ impl UnaryOp {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 // contains arithimitc, logical and comparison operators
 pub enum BinaryOp {
     Add,
@@ -132,6 +134,32 @@ impl BinaryOp {
             Self::Ne => "!=",
             Self::And => "and",
             Self::Or => "or",
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum Stmt {
+    // exprStmt
+    Expr(Expr),
+    Print(Expr),
+}
+
+impl Stmt {
+    pub fn expr(expr: Expr) -> Stmt {
+        Self::Expr(expr)
+    }
+    pub fn print(expr: Expr) -> Stmt {
+        Self::Print(expr)
+    }
+}
+
+// pretty printer
+impl Debug for Stmt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Expr(expr) => f.debug_tuple("Expr").field(&expr.pretty()).finish(),
+            Self::Print(expr) => f.debug_tuple("Print").field(&expr.pretty()).finish(),
         }
     }
 }

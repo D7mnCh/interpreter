@@ -1,4 +1,9 @@
 /*
+program        → statement* EOF ;
+statement      → exprStmt
+               | printStmt ;
+exprStmt       → expression ";" ;
+printStmt      → print expression "" ;
 expression     → equality ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
@@ -19,7 +24,7 @@ NOTE
 */
 
 use super::{
-    ast::{BinaryOp, Expr, UnaryOp},
+    ast::{BinaryOp, Expr, Stmt, UnaryOp},
     scanner::{Token, TokenType},
 };
 
@@ -36,6 +41,8 @@ impl From<TokenType> for BinaryOp {
             TokenType::LessEqual => BinaryOp::Le,
             TokenType::Greater => BinaryOp::Gt,
             TokenType::GreaterEqual => BinaryOp::Ge,
+            TokenType::And => BinaryOp::And,
+            TokenType::Or => BinaryOp::Or,
             _ => {
                 panic!(
                     "caller should only convert to BinaryOp if TokenType is an operation variant"
@@ -58,6 +65,7 @@ impl From<TokenType> for UnaryOp {
 }
 
 enum ParseError {
+    ExpectedSemicolon { found: Token },
     ExpectedExpr { found: Token },
     ExpectedToken { expected: TokenType, found: Token },
     ExpectedNum { found: Token },
@@ -76,16 +84,15 @@ impl ParseError {
         let token_type = token.get_token_type();
         if token_type == TokenType::Eof {
             format!(
-                "[Parse Error] Line {}:{} at end:",
+                "[Parse Error] Line [{}:{}] at end",
                 token.get_line(),
                 token.get_lexeme_pos()
             )
         } else {
             format!(
-                "[Parse Error] Line {}:{} at \"{}\":",
+                "[Parse Error] Line [{}:{}]",
                 token.get_line(),
                 token.get_lexeme_pos(),
-                token.get_lexeme()
             )
         }
     }
@@ -103,13 +110,16 @@ impl ParseError {
                 expected.as_str(),
                 found.get_lexeme()
             ),
-            Self::ExpectedExpr { found } => {
-                eprintln!(
-                    "{} Expected expr, found \"{}\"",
-                    self.at_which_line(&found),
-                    found.get_lexeme()
-                )
-            }
+            Self::ExpectedExpr { found } => eprintln!(
+                "{} Expected expr, found \"{}\"",
+                self.at_which_line(&found),
+                found.get_lexeme()
+            ),
+            Self::ExpectedSemicolon { found } => eprintln!(
+                "{} Expected ';', found \"{}\"",
+                self.at_which_line(&found),
+                found.get_lexeme()
+            ),
         }
     }
 }
@@ -172,16 +182,6 @@ impl Parser {
         true
     }
 
-    fn consume_if_match(&mut self, token_type: TokenType) -> Option<ParseError> {
-        if !self.match_current_token_type(&[token_type.clone()]) {
-            return Some(ParseError::ExpectedToken {
-                expected: token_type,
-                found: self.peek_current_token(),
-            });
-        }
-        None
-    }
-
     // TODO:
     // NOTE: need tracking a thing to impl
     fn pretty(&self) -> String {
@@ -191,6 +191,33 @@ impl Parser {
 
 // the actuall parser impl using the recursion descenet method
 impl Parser {
+    fn statement(&mut self) -> Result<Stmt, ParseError> {
+        if self.match_current_token_type(&[TokenType::Print]) {
+            return self.print_statement();
+        }
+        self.expression_statement()
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
+        let expr = self.expression()?;
+        if !self.match_current_token_type(&[TokenType::Semicolon]) {
+            return Err(ParseError::ExpectedSemicolon {
+                found: self.peek_current_token(),
+            });
+        }
+        Ok(Stmt::Expr(expr))
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, ParseError> {
+        let expr = self.expression()?;
+        if !self.match_current_token_type(&[TokenType::Semicolon]) {
+            return Err(ParseError::ExpectedSemicolon {
+                found: self.peek_current_token(),
+            });
+        }
+        Ok(Stmt::Print(expr))
+    }
+
     fn expression(&mut self) -> Result<Expr, ParseError> {
         self.equality()
     }
@@ -219,6 +246,8 @@ impl Parser {
             TokenType::GreaterEqual,
             TokenType::Less,
             TokenType::LessEqual,
+            TokenType::And,
+            TokenType::Or,
         ]) {
             let left = expr?;
             let op = self.prev_token().get_token_type().into();
@@ -286,9 +315,11 @@ impl Parser {
             Ok(Expr::Nil)
         } else if self.match_current_token_type(&[TokenType::LeftParen]) {
             let expr = self.expression()?;
-            // consume next token, don't self.next_token(), check if it ")" and then consume it
-            if let Some(e) = self.consume_if_match(TokenType::RightParen) {
-                return Err(e);
+            if !self.match_current_token_type(&[TokenType::RightParen]) {
+                return Err(ParseError::ExpectedToken {
+                    expected: TokenType::RightParen,
+                    found: self.peek_current_token(),
+                });
             }
             Ok(Expr::grouping(expr))
         } else {
@@ -298,15 +329,19 @@ impl Parser {
         };
     }
 
-    // for now parses only one expr
-    // if self.expression() return an error, i should not have an Expr but None(map Err to None)
-    pub fn parse(&mut self) -> Option<Expr> {
-        return match self.expression() {
-            Ok(expr) => Some(expr),
-            Err(err) => {
-                err.report();
-                None
-            }
-        };
+    // if self.statement() returns an error, i should not have an Stmt but None(map Err to None)
+    pub fn parse(&mut self) -> Vec<Stmt> {
+        let mut statements = Vec::new();
+        while !self.is_tokens_end() {
+            // i was doing match expr inside push() -.-. that's make the code less readable.
+            //match first then push
+            match self.statement().inspect_err(|err| err.report()) {
+                Ok(statement) => statements.push(statement),
+                Err(_) => {
+                    self.next_token();
+                }
+            };
+        }
+        statements
     }
 }

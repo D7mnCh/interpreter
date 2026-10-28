@@ -1,4 +1,4 @@
-use interpreter::{evaluate::LoxValue, parser::Parser, scanner::Scanner};
+use interpreter::{ast::Stmt, interpreter::Interpreter, parser::Parser, scanner::Scanner};
 use std::{
     env, fs,
     io::{self, Result},
@@ -39,21 +39,17 @@ fn run(source: String) {
     let mut scanner = Scanner::new(&source_as_chars);
     let tokens = scanner.tokenize();
 
-    // TODO impl from Tokens to get token_types
-    let mut token_types: Vec<&str> = Vec::new();
-    for token in tokens.clone().into_iter() {
-        let token_type = token.get_token_type().as_str();
-        token_types.push(token_type);
-    }
-    println!("tokens -> {token_types:?}");
+    let token_types_dbg: Vec<&str> = tokens
+        .iter()
+        .map(|token| token.get_token_type().as_str())
+        .collect();
+    println!("tokens -> {token_types_dbg:?}");
 
     let mut parser = Parser::new(tokens);
-    let expr_kind = parser.parse();
+    // can do filter_map(|stmt| stmt) that magically discrad None and do the same thing with flatten()
+    // flatten() remove Option nesting, and magically discard None
+    let stmts: Vec<Stmt> = parser.parse();
+    println!("parser -> {:?}", stmts);
 
-    if let Some(expr) = expr_kind {
-        println!("expr -> {}", expr.pretty());
-        if let Some(lox_value) = LoxValue::interpret(expr) {
-            println!("lox_value -> {}", lox_value.pretty());
-        }
-    }
+    Interpreter::interpret(stmts);
 }
