@@ -11,15 +11,19 @@ operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
                | "+"  | "-"  | "*" | "/" ;
 */
 
+use crate::scanner::Token;
 use std::fmt::Debug;
 
 // can't do Expr<T> cuz the recursion of Expr when choosing Literal(T) varient, all will have the
 //the same T value(and you don't want that)
 #[derive(Debug, Clone)]
+// Expr == primary rule from the grammar graph
 pub enum Expr {
     NumLiter(f32),
     StringLiter(String),
     BoolLiter(bool),
+    // Identifier(Token) used to get the value of that ident from that Token
+    Identifier(Token),
     Nil,
     Unary {
         op: UnaryOp,
@@ -38,15 +42,23 @@ impl Expr {
     pub fn num_liter(value: f32) -> Expr {
         Expr::NumLiter(value)
     }
+
     pub fn bool_liter(value: bool) -> Expr {
         Expr::BoolLiter(value)
     }
+
     pub fn string_liter(value: String) -> Expr {
         Expr::StringLiter(value)
     }
+
     pub fn nil() -> Expr {
         Expr::Nil
     }
+
+    pub fn ident(token: Token) -> Expr {
+        Expr::Identifier(token)
+    }
+
     pub fn binary(left: Expr, op: BinaryOp, right: Expr) -> Expr {
         Expr::Binary {
             right: right.into(),
@@ -73,6 +85,7 @@ impl Expr {
             Expr::BoolLiter(value) => format!("{value}"),
             Expr::StringLiter(value) => value.clone(),
             Expr::Nil => "nil".to_string(),
+            Expr::Identifier(token) => format!("{}", token.get_lexeme()),
             Expr::Binary { right, op, left } => {
                 format!(
                     "({op} {left} {right})",
@@ -143,6 +156,7 @@ pub enum Stmt {
     // exprStmt
     Expr(Expr),
     Print(Expr),
+    VarDecl { name: String, expr: Expr },
 }
 
 impl Stmt {
@@ -152,6 +166,9 @@ impl Stmt {
     pub fn print(expr: Expr) -> Stmt {
         Self::Print(expr)
     }
+    pub fn var_decl(name: String, expr: Expr) -> Stmt {
+        Self::VarDecl { name, expr }
+    }
 }
 
 // pretty printer
@@ -160,6 +177,14 @@ impl Debug for Stmt {
         match self {
             Self::Expr(expr) => f.debug_tuple("Expr").field(&expr.pretty()).finish(),
             Self::Print(expr) => f.debug_tuple("Print").field(&expr.pretty()).finish(),
+            Self::VarDecl {
+                name: var_name,
+                expr,
+            } => f
+                .debug_tuple("VarDecl")
+                .field(&var_name)
+                .field(&expr.pretty())
+                .finish(),
         }
     }
 }

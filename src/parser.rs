@@ -1,9 +1,12 @@
 /*
-program        → statement* EOF ;
+program        → declaration* EOF ;
+declaration    → VarDecl
+               | statement
+VarDecl        → "var" IDENTIFIAR  "=" expressoin ";"
 statement      → exprStmt
                | printStmt ;
 exprStmt       → expression ";" ;
-printStmt      → print expression "" ;
+printStmt      → print expression ";" ;
 expression     → equality ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
@@ -12,12 +15,13 @@ factor         → unary ( ( "/" | "*" ) unary )* ;
 unary          → ( "!" | "-" ) unary
                | primary ;
 primary        → NUMBER | STRING | "true" | "false" | "nil"
-               | "(" expression ")" ;
+               | "(" expression ")" | IDENTIFIAR ;
 */
 
 /*
 TODO:
     - impl tests
+    - report error in place if doen't need context
 NOTE
     - error hanlding is kinda bad
     - how do i get a bool or nil ?
@@ -69,6 +73,8 @@ enum ParseError {
     ExpectedExpr { found: Token },
     ExpectedToken { expected: TokenType, found: Token },
     ExpectedNum { found: Token },
+    ExpectedIdentifier { found: Token },
+    ExpectedEqualAfterIdentifier { found: Token },
 }
 
 // i think you can map the error to ParseError
@@ -120,6 +126,17 @@ impl ParseError {
                 self.at_which_line(&found),
                 found.get_lexeme()
             ),
+            Self::ExpectedIdentifier { found } => eprintln!(
+                "{} Expected \"identifier\", found \"{}\"",
+                self.at_which_line(&found),
+                found.get_lexeme()
+            ),
+            Self::ExpectedEqualAfterIdentifier { found } => eprintln!(
+                "{} Expected \"=\" after identifier, found \"{}\"\
+                NOTE: git it a value",
+                self.at_which_line(&found),
+                found.get_lexeme()
+            ),
         }
     }
 }
@@ -141,10 +158,13 @@ impl Parser {
     }
 
     fn next_token(&mut self) -> Token {
-        let token = self.tokens[self.current_token_indx].clone();
-        self.current_token_indx += 1;
+        // needed especially for REPL, e.g if missing ';' at "EOF", next_token() get called
+        // at parse() for next tokens resulting out of bound indexing
+        if !self.is_tokens_end() {
+            self.current_token_indx += 1;
+        }
 
-        token
+        self.tokens[self.current_token_indx].clone()
     }
 
     fn match_current_token_type(&mut self, token_types: &[TokenType]) -> bool {
@@ -183,7 +203,7 @@ impl Parser {
     }
 
     // TODO:
-    // NOTE: need tracking a thing to impl
+    // NOTE: need tracking
     fn pretty(&self) -> String {
         todo!()
     }
@@ -191,10 +211,41 @@ impl Parser {
 
 // the actuall parser impl using the recursion descenet method
 impl Parser {
+    fn declaration(&mut self) -> Result<Stmt, ParseError> {
+        if self.match_current_token_type(&[TokenType::Var]) {
+            return self.variable_declaration();
+        }
+
+        self.statement()
+    }
+
+    fn variable_declaration(&mut self) -> Result<Stmt, ParseError> {
+        if !self.match_current_token_type(&[TokenType::Identifier]) {
+            return Err(ParseError::ExpectedIdentifier {
+                found: self.peek_current_token(),
+            });
+        }
+
+        let var_name = self.prev_token().get_lexeme().to_owned();
+        if !self.match_current_token_type(&[TokenType::Equal]) {
+            return Err(ParseError::ExpectedEqualAfterIdentifier {
+                found: self.peek_current_token(),
+            });
+        }
+        let expr = self.expression()?;
+        if !self.match_current_token_type(&[TokenType::Semicolon]) {
+            return Err(ParseError::ExpectedSemicolon {
+                found: self.peek_current_token(),
+            });
+        }
+        Ok(Stmt::var_decl(var_name, expr))
+    }
+
     fn statement(&mut self) -> Result<Stmt, ParseError> {
         if self.match_current_token_type(&[TokenType::Print]) {
             return self.print_statement();
         }
+
         self.expression_statement()
     }
 
@@ -205,6 +256,7 @@ impl Parser {
                 found: self.peek_current_token(),
             });
         }
+
         Ok(Stmt::Expr(expr))
     }
 
@@ -215,6 +267,7 @@ impl Parser {
                 found: self.peek_current_token(),
             });
         }
+
         Ok(Stmt::Print(expr))
     }
 
@@ -322,6 +375,10 @@ impl Parser {
                 });
             }
             Ok(Expr::grouping(expr))
+            // i did handle if trying to access of an undeclared variable in variable_declaration(), so no error handling here
+        } else if self.match_current_token_type(&[TokenType::Identifier]) {
+            let token = self.prev_token();
+            Ok(Expr::ident(token))
         } else {
             Err(ParseError::ExpectedExpr {
                 found: self.peek_current_token(),
@@ -329,13 +386,12 @@ impl Parser {
         };
     }
 
-    // if self.statement() returns an error, i should not have an Stmt but None(map Err to None)
+    // i was retuning Vec<Option<Stmt>> from self.statement(), there's no need for the None
     pub fn parse(&mut self) -> Vec<Stmt> {
         let mut statements = Vec::new();
         while !self.is_tokens_end() {
-            // i was doing match expr inside push() -.-. that's make the code less readable.
-            //match first then push
-            match self.statement().inspect_err(|err| err.report()) {
+            // i was doing match expr inside push() -.-. that's make the code less readable. match first then push
+            match self.declaration().inspect_err(|err| err.report()) {
                 Ok(statement) => statements.push(statement),
                 Err(_) => {
                     self.next_token();

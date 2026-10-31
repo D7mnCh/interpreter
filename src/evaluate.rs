@@ -1,11 +1,5 @@
 // TODO: tests
-// TODO: forget, need a code review
-
-/*
-- evaluate() function produce a value from an expr, you'll return the type of that value,
-that type is one of lox's 4 types(number,string,bool,nil), so make an enum that represent
-one of those 4 types
-*/
+use std::collections::HashMap;
 
 use crate::ast::{BinaryOp, Expr, UnaryOp};
 
@@ -14,9 +8,12 @@ pub enum RuntimeError {
     BinaryOpInvalidComparison,
     BinaryOpDividedByZero,
     BinaryOpMustBothBeBool,
+    BinaryOpOperandsMustBeBool,
+
     UnaryOpInvalidNumber,
     UnaryOpMustBeBool,
-    BinaryOpOperandsMustBeBool,
+
+    VariableUndeclared,
 }
 
 impl RuntimeError {
@@ -38,6 +35,9 @@ impl RuntimeError {
             RuntimeError::BinaryOpOperandsMustBeBool => {
                 println!("[Runtime Error]: Operands must evaluate to bool")
             }
+            RuntimeError::VariableUndeclared => {
+                println!("[Runtime Error]: Try of use of undeclared variable")
+            }
         }
     }
 }
@@ -51,16 +51,30 @@ pub enum LoxValue {
 }
 
 impl LoxValue {
-    pub fn evaluate(expr: Expr) -> Result<LoxValue, RuntimeError> {
+    /*
+    - evaluate() function produce a value from an expr, you'll return the type of that value,
+    that type is one of lox's 4 types(number,string,bool,nil), so make an enum that represent
+    one of those 4 types, else runtime error
+    */
+    pub fn evaluate(expr: Expr, env: &Environment) -> Result<LoxValue, RuntimeError> {
         return match expr {
             Expr::NumLiter(liter) => Ok(LoxValue::Number(liter)),
             Expr::StringLiter(liter) => Ok(LoxValue::String(liter)),
             Expr::BoolLiter(liter) => Ok(LoxValue::Bool(liter)),
             Expr::Nil => Ok(LoxValue::Nil),
-            Expr::Unary { op, right } => Self::handle_unary_op(op, right),
-            Expr::Binary { left, op, right } => Self::handle_binary_op(left, op, right),
+            /*
+            - remember evaluation
+            - i handle variable declaration, so this part where i do use the variable's value
+            - here you are using the variable ?
+            - to evaluate the variable, i do need environment
+            */
+            Expr::Identifier(token) => env
+                .get_glob_var_vlaue(token.get_lexeme())
+                .and_then(|expr| LoxValue::evaluate(expr.to_owned(), env)),
+            Expr::Unary { op, right } => Self::handle_unary_op(op, right, &env),
+            Expr::Binary { left, op, right } => Self::handle_binary_op(left, op, right, &env),
             // need recusive cuz i need LoxType's varient, not an Expr
-            Expr::Grouping(expr) => LoxValue::evaluate(*expr),
+            Expr::Grouping(expr) => LoxValue::evaluate(*expr, &env),
         };
     }
 
@@ -68,10 +82,11 @@ impl LoxValue {
         left: Box<Expr>,
         op: BinaryOp,
         right: Box<Expr>,
+        env: &Environment,
     ) -> Result<LoxValue, RuntimeError> {
         // i should begin with left for some reason
-        let left = LoxValue::evaluate(*left)?;
-        let right = LoxValue::evaluate(*right)?;
+        let left = LoxValue::evaluate(*left, &env)?;
+        let right = LoxValue::evaluate(*right, &env)?;
 
         /*
         i was checking l and r on a seperate function, and extract in another function
@@ -188,8 +203,12 @@ impl LoxValue {
         }
     }
 
-    fn handle_unary_op(op: UnaryOp, right: Box<Expr>) -> Result<LoxValue, RuntimeError> {
-        let right = LoxValue::evaluate(*right)?;
+    fn handle_unary_op(
+        op: UnaryOp,
+        right: Box<Expr>,
+        env: &Environment,
+    ) -> Result<LoxValue, RuntimeError> {
+        let right = LoxValue::evaluate(*right, &env)?;
 
         match op {
             UnaryOp::Neg => match right {
@@ -213,5 +232,22 @@ impl LoxValue {
             LoxValue::Bool(liter) => format!("{liter}"),
             LoxValue::Nil => format!("Nil"),
         }
+    }
+}
+
+#[derive(Default)]
+pub struct Environment {
+    global_variables: HashMap<String, Expr>,
+}
+
+impl Environment {
+    pub fn define_glob_var(&mut self, var_name: &str, expr: Expr) {
+        self.global_variables.insert(String::from(var_name), expr);
+    }
+
+    pub fn get_glob_var_vlaue(&self, var_name: &str) -> Result<&Expr, RuntimeError> {
+        self.global_variables
+            .get(var_name)
+            .ok_or(RuntimeError::VariableUndeclared)
     }
 }

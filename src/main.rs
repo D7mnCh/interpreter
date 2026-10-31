@@ -1,4 +1,6 @@
-use interpreter::{ast::Stmt, interpreter::Interpreter, parser::Parser, scanner::Scanner};
+use interpreter::{
+    ast::Stmt, evaluate::Environment, interpreter::Interpreter, parser::Parser, scanner::Scanner,
+};
 use std::{
     env, fs,
     io::{self, Result},
@@ -6,20 +8,25 @@ use std::{
 
 fn main() -> Result<()> {
     let args: Vec<_> = env::args().collect();
+    /*
+    env should be at runtime without dropping, constructed before run (especially
+    before run_prompt(REPL)) cuz env needs to live as long as the program
+    */
+    let mut env = Environment::default();
     if args.len() == 1 {
-        run_prompt();
+        run_prompt(&mut env);
     } else if args.len() == 2 {
         if args[1] == "--help" {
             println!("Usage: cargo run -- file.rlox");
         } else {
             let source = fs::read_to_string(args[1].clone())?;
-            run(source);
+            run(source, &mut env);
         }
     }
     Ok(())
 }
 
-fn run_prompt() {
+fn run_prompt(mut env: &mut Environment) {
     loop {
         let mut line = String::new();
         match io::stdin().read_line(&mut line) {
@@ -29,12 +36,12 @@ fn run_prompt() {
                 break;
             }
 
-            Ok(_) => run(line),
+            Ok(_) => run(line, &mut env),
         }
     }
 }
 
-fn run(source: String) {
+fn run(source: String, env: &mut Environment) {
     let source_as_chars = &source.chars().collect::<Vec<char>>();
     let mut scanner = Scanner::new(&source_as_chars);
     let tokens = scanner.tokenize();
@@ -46,10 +53,9 @@ fn run(source: String) {
     println!("tokens -> {token_types_dbg:?}");
 
     let mut parser = Parser::new(tokens);
-    // can do filter_map(|stmt| stmt) that magically discrad None and do the same thing with flatten()
-    // flatten() remove Option nesting, and magically discard None
     let stmts: Vec<Stmt> = parser.parse();
     println!("parser -> {:?}", stmts);
 
-    Interpreter::interpret(stmts);
+    let mut interpreter = Interpreter::new(env);
+    interpreter.interpret(stmts);
 }

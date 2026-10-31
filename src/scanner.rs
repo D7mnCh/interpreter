@@ -258,6 +258,7 @@ impl<'a> Scanner<'a> {
         Ok(TokenType::StringLiter)
     }
 
+    // NOTE i can give Token literal at runtime,parsing,....
     fn get_literal(&self, token_type: &TokenType) -> String {
         match token_type {
             TokenType::StringLiter => {
@@ -275,7 +276,9 @@ impl<'a> Scanner<'a> {
                 .iter()
                 .collect(),
 
-            _ => String::new(),
+            // NOTE other token types e.g identifiers are getting there values at parsing stage even
+            //at RuntimeTime stage other then scanning stage
+            _ => String::from("Unimplemented"),
         }
     }
 
