@@ -1,21 +1,23 @@
 /*
 program        → declaration* EOF ;
 declaration    → VarDecl
-               | statement
-VarDecl        → "var" IDENTIFIAR  "=" expressoin ";"
+               | statement ;
+VarDecl        → 'var' IDENTIFIAR  '=' expressoin ';' ;
 statement      → exprStmt
-               | printStmt ;
-exprStmt       → expression ";" ;
-printStmt      → print expression ";" ;
+               | printStmt
+               | reAssignment ;
+reAssignment    → IDENTIFIER '=' exprStmt ;
+exprStmt       → expression ';' ;
+printStmt      → print expression ';' ;
 expression     → equality ;
-equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-term           → factor ( ( "-" | "+" ) factor )* ;
-factor         → unary ( ( "/" | "*" ) unary )* ;
-unary          → ( "!" | "-" ) unary
+equality       → comparison ( ( '!=' | '==' ) comparison )* ;
+comparison     → term ( ( '>' | '>=' | '<' | '<=' ) term )* ;
+term           → factor ( ( '-' | '+' ) factor )* ;
+factor         → unary ( ( '/' | '*' ) unary )* ;
+unary          → ( '!' | '-' ) unary
                | primary ;
-primary        → NUMBER | STRING | "true" | "false" | "nil"
-               | "(" expression ")" | IDENTIFIAR ;
+primary        → NUMBER | STRING | 'true' | 'false' | 'nil'
+               | '(' expression ')' | IDENTIFIAR ;
 */
 
 /*
@@ -227,26 +229,58 @@ impl Parser {
         }
 
         let var_name = self.prev_token().get_lexeme().to_owned();
+
         if !self.match_current_token_type(&[TokenType::Equal]) {
             return Err(ParseError::ExpectedEqualAfterIdentifier {
                 found: self.peek_current_token(),
             });
         }
+
         let expr = self.expression()?;
+
         if !self.match_current_token_type(&[TokenType::Semicolon]) {
             return Err(ParseError::ExpectedSemicolon {
                 found: self.peek_current_token(),
             });
         }
+
         Ok(Stmt::var_decl(var_name, expr))
     }
 
     fn statement(&mut self) -> Result<Stmt, ParseError> {
-        if self.match_current_token_type(&[TokenType::Print]) {
+        if self.peek_current_token().get_token_type() == TokenType::Print {
+            self.next_token();
             return self.print_statement();
         }
 
+        if self.peek_current_token().get_token_type() == TokenType::Identifier {
+            self.next_token();
+            return self.re_assignment();
+        }
+
+        self.next_token();
+
         self.expression_statement()
+    }
+
+    fn re_assignment(&mut self) -> Result<Stmt, ParseError> {
+        let var_name = self.prev_token().get_lexeme().to_owned();
+
+        if !self.match_current_token_type(&[TokenType::Equal]) {
+            return Err(ParseError::ExpectedEqualAfterIdentifier {
+                found: self.peek_current_token(),
+            });
+        }
+
+        let expr = self.expression()?;
+
+        if !self.match_current_token_type(&[TokenType::Semicolon]) {
+            return Err(ParseError::ExpectedSemicolon {
+                found: self.peek_current_token(),
+            });
+        }
+
+        Ok(Stmt::re_assign(var_name, expr))
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
@@ -375,7 +409,7 @@ impl Parser {
                 });
             }
             Ok(Expr::grouping(expr))
-            // i did handle if trying to access of an undeclared variable in variable_declaration(), so no error handling here
+            // did handle if trying to access of an undeclared variable at runtime
         } else if self.match_current_token_type(&[TokenType::Identifier]) {
             let token = self.prev_token();
             Ok(Expr::ident(token))
@@ -386,11 +420,12 @@ impl Parser {
         };
     }
 
-    // i was retuning Vec<Option<Stmt>> from self.statement(), there's no need for the None
+    // i was retuning Vec<Option<Stmt>> output of self.statement(), there's no need for the None
     pub fn parse(&mut self) -> Vec<Stmt> {
         let mut statements = Vec::new();
         while !self.is_tokens_end() {
-            // i was doing match expr inside push() -.-. that's make the code less readable. match first then push
+            // i was doing match expr inside push() -.-. that's make the code less readable.
+            //match first then push
             match self.declaration().inspect_err(|err| err.report()) {
                 Ok(statement) => statements.push(statement),
                 Err(_) => {

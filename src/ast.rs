@@ -156,18 +156,25 @@ pub enum Stmt {
     // exprStmt
     Expr(Expr),
     Print(Expr),
-    VarDecl { name: String, expr: Expr },
+    VarDecl { var_name: String, expr: Expr },
+    ReAssing { var_name: String, expr: Expr },
 }
 
 impl Stmt {
     pub fn expr(expr: Expr) -> Stmt {
         Self::Expr(expr)
     }
+
     pub fn print(expr: Expr) -> Stmt {
         Self::Print(expr)
     }
-    pub fn var_decl(name: String, expr: Expr) -> Stmt {
-        Self::VarDecl { name, expr }
+
+    pub fn var_decl(var_name: String, expr: Expr) -> Stmt {
+        Self::VarDecl { var_name, expr }
+    }
+
+    pub fn re_assign(var_name: String, expr: Expr) -> Stmt {
+        Self::ReAssing { var_name, expr }
     }
 }
 
@@ -177,11 +184,13 @@ impl Debug for Stmt {
         match self {
             Self::Expr(expr) => f.debug_tuple("Expr").field(&expr.pretty()).finish(),
             Self::Print(expr) => f.debug_tuple("Print").field(&expr.pretty()).finish(),
-            Self::VarDecl {
-                name: var_name,
-                expr,
-            } => f
+            Self::VarDecl { var_name, expr } => f
                 .debug_tuple("VarDecl")
+                .field(&var_name)
+                .field(&expr.pretty())
+                .finish(),
+            Self::ReAssing { var_name, expr } => f
+                .debug_tuple("ReAssign")
                 .field(&var_name)
                 .field(&expr.pretty())
                 .finish(),

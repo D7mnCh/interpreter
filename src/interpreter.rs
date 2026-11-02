@@ -32,11 +32,13 @@ impl<'a> Interpreter<'a> {
                 println!("{}", expr.pretty());
                 Ok(())
             }
-            Stmt::VarDecl {
-                name: var_name,
-                expr,
-            } => {
+            Stmt::VarDecl { var_name, expr } => {
                 self.env.define_glob_var(&var_name, expr.to_owned());
+                Ok(())
+            }
+            Stmt::ReAssing { var_name, expr } => {
+                let expr_old = self.env.get_mut_glob_var_value(&var_name)?;
+                *expr_old = expr;
                 Ok(())
             }
         }

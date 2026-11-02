@@ -250,4 +250,10 @@ impl Environment {
             .get(var_name)
             .ok_or(RuntimeError::VariableUndeclared)
     }
+
+    pub fn get_mut_glob_var_value(&mut self, var_name: &str) -> Result<&mut Expr, RuntimeError> {
+        self.global_variables
+            .get_mut(var_name)
+            .ok_or(RuntimeError::VariableUndeclared)
+    }
 }
