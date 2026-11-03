@@ -1,2 +1,2 @@
 # Resuources
-[crafting-interpreter book](https://craftinginterpreters.com) -> chapter-6
+<!--[crafting-interpreter book](https://craftinginterpreters.com) -> chapter-8-->

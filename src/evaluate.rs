@@ -42,7 +42,7 @@ impl RuntimeError {
     }
 }
 
-#[derive(PartialEq, PartialOrd)]
+#[derive(Clone, PartialEq, PartialOrd)]
 pub enum LoxValue {
     Number(f32),
     String(String),
@@ -68,9 +68,7 @@ impl LoxValue {
             - here you are using the variable ?
             - to evaluate the variable, i do need environment
             */
-            Expr::Identifier(token) => env
-                .get_glob_var_vlaue(token.get_lexeme())
-                .and_then(|expr| LoxValue::evaluate(expr.to_owned(), env)),
+            Expr::Identifier(token) => env.get_var_vlaue(token.get_lexeme()).cloned(),
             Expr::Unary { op, right } => Self::handle_unary_op(op, right, &env),
             Expr::Binary { left, op, right } => Self::handle_binary_op(left, op, right, &env),
             // need recusive cuz i need LoxType's varient, not an Expr
@@ -236,23 +234,24 @@ impl LoxValue {
 }
 
 #[derive(Default)]
+// envirnomet should use lox vvalue cuz its a runtime concept
 pub struct Environment {
-    global_variables: HashMap<String, Expr>,
+    variables: HashMap<String, LoxValue>,
 }
 
 impl Environment {
-    pub fn define_glob_var(&mut self, var_name: &str, expr: Expr) {
-        self.global_variables.insert(String::from(var_name), expr);
+    pub fn define_var(&mut self, var_name: &str, expr: LoxValue) {
+        self.variables.insert(String::from(var_name), expr);
     }
 
-    pub fn get_glob_var_vlaue(&self, var_name: &str) -> Result<&Expr, RuntimeError> {
-        self.global_variables
+    pub fn get_var_vlaue(&self, var_name: &str) -> Result<&LoxValue, RuntimeError> {
+        self.variables
             .get(var_name)
             .ok_or(RuntimeError::VariableUndeclared)
     }
 
-    pub fn get_mut_glob_var_value(&mut self, var_name: &str) -> Result<&mut Expr, RuntimeError> {
-        self.global_variables
+    pub fn get_mut_var_value(&mut self, var_name: &str) -> Result<&mut LoxValue, RuntimeError> {
+        self.variables
             .get_mut(var_name)
             .ok_or(RuntimeError::VariableUndeclared)
     }

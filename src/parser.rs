@@ -169,7 +169,8 @@ impl Parser {
         self.tokens[self.current_token_indx].clone()
     }
 
-    fn match_current_token_type(&mut self, token_types: &[TokenType]) -> bool {
+    // advance/call self.next() if match
+    fn match_current_token_type_next(&mut self, token_types: &[TokenType]) -> bool {
         if self.is_tokens_end() {
             return false;
         }
@@ -181,6 +182,23 @@ impl Parser {
             .any(|token_type| token_type == &current_token_type)
         {
             self.next_token();
+            return true;
+        }
+
+        false
+    }
+
+    fn match_current_token_type_peek(&mut self, token_types: &[TokenType]) -> bool {
+        if self.is_tokens_end() {
+            return false;
+        }
+
+        let current_token_type = self.peek_current_token().get_token_type();
+
+        if token_types
+            .iter()
+            .any(|token_type| token_type == &current_token_type)
+        {
             return true;
         }
 
@@ -214,7 +232,7 @@ impl Parser {
 // the actuall parser impl using the recursion descenet method
 impl Parser {
     fn declaration(&mut self) -> Result<Stmt, ParseError> {
-        if self.match_current_token_type(&[TokenType::Var]) {
+        if self.match_current_token_type_next(&[TokenType::Var]) {
             return self.variable_declaration();
         }
 
@@ -222,7 +240,7 @@ impl Parser {
     }
 
     fn variable_declaration(&mut self) -> Result<Stmt, ParseError> {
-        if !self.match_current_token_type(&[TokenType::Identifier]) {
+        if !self.match_current_token_type_next(&[TokenType::Identifier]) {
             return Err(ParseError::ExpectedIdentifier {
                 found: self.peek_current_token(),
             });
@@ -230,7 +248,7 @@ impl Parser {
 
         let var_name = self.prev_token().get_lexeme().to_owned();
 
-        if !self.match_current_token_type(&[TokenType::Equal]) {
+        if !self.match_current_token_type_next(&[TokenType::Equal]) {
             return Err(ParseError::ExpectedEqualAfterIdentifier {
                 found: self.peek_current_token(),
             });
@@ -238,7 +256,7 @@ impl Parser {
 
         let expr = self.expression()?;
 
-        if !self.match_current_token_type(&[TokenType::Semicolon]) {
+        if !self.match_current_token_type_next(&[TokenType::Semicolon]) {
             return Err(ParseError::ExpectedSemicolon {
                 found: self.peek_current_token(),
             });
@@ -248,25 +266,22 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Stmt, ParseError> {
-        if self.peek_current_token().get_token_type() == TokenType::Print {
+        if self.match_current_token_type_peek(&[TokenType::Print]) {
             self.next_token();
             return self.print_statement();
-        }
-
-        if self.peek_current_token().get_token_type() == TokenType::Identifier {
+        } else if self.match_current_token_type_peek(&[TokenType::Identifier]) {
             self.next_token();
             return self.re_assignment();
         }
 
         self.next_token();
-
         self.expression_statement()
     }
 
     fn re_assignment(&mut self) -> Result<Stmt, ParseError> {
         let var_name = self.prev_token().get_lexeme().to_owned();
 
-        if !self.match_current_token_type(&[TokenType::Equal]) {
+        if !self.match_current_token_type_next(&[TokenType::Equal]) {
             return Err(ParseError::ExpectedEqualAfterIdentifier {
                 found: self.peek_current_token(),
             });
@@ -274,7 +289,7 @@ impl Parser {
 
         let expr = self.expression()?;
 
-        if !self.match_current_token_type(&[TokenType::Semicolon]) {
+        if !self.match_current_token_type_next(&[TokenType::Semicolon]) {
             return Err(ParseError::ExpectedSemicolon {
                 found: self.peek_current_token(),
             });
@@ -285,7 +300,7 @@ impl Parser {
 
     fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
         let expr = self.expression()?;
-        if !self.match_current_token_type(&[TokenType::Semicolon]) {
+        if !self.match_current_token_type_next(&[TokenType::Semicolon]) {
             return Err(ParseError::ExpectedSemicolon {
                 found: self.peek_current_token(),
             });
@@ -296,7 +311,7 @@ impl Parser {
 
     fn print_statement(&mut self) -> Result<Stmt, ParseError> {
         let expr = self.expression()?;
-        if !self.match_current_token_type(&[TokenType::Semicolon]) {
+        if !self.match_current_token_type_next(&[TokenType::Semicolon]) {
             return Err(ParseError::ExpectedSemicolon {
                 found: self.peek_current_token(),
             });
@@ -314,7 +329,7 @@ impl Parser {
         let mut expr = self.comparison();
 
         // (...)* maps to while loop
-        while self.match_current_token_type(&[TokenType::BangEqual, TokenType::EqualEqual]) {
+        while self.match_current_token_type_next(&[TokenType::BangEqual, TokenType::EqualEqual]) {
             let left = expr?;
             let op = self.prev_token().get_token_type().into();
             let right = self.comparison()?;
@@ -328,7 +343,7 @@ impl Parser {
     fn comparison(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.term();
 
-        while self.match_current_token_type(&[
+        while self.match_current_token_type_next(&[
             TokenType::Greater,
             TokenType::GreaterEqual,
             TokenType::Less,
@@ -349,7 +364,7 @@ impl Parser {
     fn term(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.factor();
 
-        while self.match_current_token_type(&[TokenType::Minus, TokenType::Plus]) {
+        while self.match_current_token_type_next(&[TokenType::Minus, TokenType::Plus]) {
             let left = expr?;
             let op = self.prev_token().get_token_type().into();
             let right = self.factor()?;
@@ -363,7 +378,7 @@ impl Parser {
     fn factor(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.unary();
 
-        while self.match_current_token_type(&[TokenType::Slash, TokenType::Asterisk]) {
+        while self.match_current_token_type_next(&[TokenType::Slash, TokenType::Asterisk]) {
             let left = expr?;
             let op = self.prev_token().get_token_type().into();
             let right = self.unary();
@@ -375,7 +390,7 @@ impl Parser {
     }
     fn unary(&mut self) -> Result<Expr, ParseError> {
         // first match if it an unary op or a priamry (need a method?)
-        if self.match_current_token_type(&[TokenType::Bang, TokenType::Minus]) {
+        if self.match_current_token_type_next(&[TokenType::Bang, TokenType::Minus]) {
             let right = self.unary()?;
             let op: UnaryOp = self.prev_token().get_token_type().into();
 
@@ -386,23 +401,23 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Result<Expr, ParseError> {
-        return if self.match_current_token_type(&[TokenType::Number]) {
+        return if self.match_current_token_type_next(&[TokenType::Number]) {
             let token = self.prev_token();
             let literal = token.get_literal();
             Ok(Expr::num_liter(literal.parse().unwrap()))
-        } else if self.match_current_token_type(&[TokenType::StringLiter]) {
+        } else if self.match_current_token_type_next(&[TokenType::StringLiter]) {
             let token = self.prev_token();
             let literal = token.get_literal();
             Ok(Expr::string_liter(literal.to_owned()))
-        } else if self.match_current_token_type(&[TokenType::True]) {
+        } else if self.match_current_token_type_next(&[TokenType::True]) {
             Ok(Expr::bool_liter(true))
-        } else if self.match_current_token_type(&[TokenType::False]) {
+        } else if self.match_current_token_type_next(&[TokenType::False]) {
             Ok(Expr::bool_liter(false))
-        } else if self.match_current_token_type(&[TokenType::Nil]) {
+        } else if self.match_current_token_type_next(&[TokenType::Nil]) {
             Ok(Expr::Nil)
-        } else if self.match_current_token_type(&[TokenType::LeftParen]) {
+        } else if self.match_current_token_type_next(&[TokenType::LeftParen]) {
             let expr = self.expression()?;
-            if !self.match_current_token_type(&[TokenType::RightParen]) {
+            if !self.match_current_token_type_next(&[TokenType::RightParen]) {
                 return Err(ParseError::ExpectedToken {
                     expected: TokenType::RightParen,
                     found: self.peek_current_token(),
@@ -410,7 +425,7 @@ impl Parser {
             }
             Ok(Expr::grouping(expr))
             // did handle if trying to access of an undeclared variable at runtime
-        } else if self.match_current_token_type(&[TokenType::Identifier]) {
+        } else if self.match_current_token_type_next(&[TokenType::Identifier]) {
             let token = self.prev_token();
             Ok(Expr::ident(token))
         } else {

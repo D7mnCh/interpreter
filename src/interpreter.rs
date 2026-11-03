@@ -27,17 +27,22 @@ impl<'a> Interpreter<'a> {
                 LoxValue::evaluate(expr, &self.env)?;
                 Ok(())
             }
+
             Stmt::Print(expr) => {
                 let expr = LoxValue::evaluate(expr, &self.env)?;
                 println!("{}", expr.pretty());
                 Ok(())
             }
+
             Stmt::VarDecl { var_name, expr } => {
-                self.env.define_glob_var(&var_name, expr.to_owned());
+                let expr = LoxValue::evaluate(expr, &self.env)?;
+                self.env.define_var(&var_name, expr);
                 Ok(())
             }
+
             Stmt::ReAssing { var_name, expr } => {
-                let expr_old = self.env.get_mut_glob_var_value(&var_name)?;
+                let expr = LoxValue::evaluate(expr, &self.env)?;
+                let expr_old = self.env.get_mut_var_value(&var_name)?;
                 *expr_old = expr;
                 Ok(())
             }

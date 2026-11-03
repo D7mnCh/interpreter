@@ -153,7 +153,7 @@ impl BinaryOp {
 
 #[derive(Clone)]
 pub enum Stmt {
-    // exprStmt
+    // exprStmt rule
     Expr(Expr),
     Print(Expr),
     VarDecl { var_name: String, expr: Expr },
@@ -182,14 +182,14 @@ impl Stmt {
 impl Debug for Stmt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Expr(expr) => f.debug_tuple("Expr").field(&expr.pretty()).finish(),
-            Self::Print(expr) => f.debug_tuple("Print").field(&expr.pretty()).finish(),
-            Self::VarDecl { var_name, expr } => f
+            Stmt::Expr(expr) => f.debug_tuple("Expr").field(&expr.pretty()).finish(),
+            Stmt::Print(expr) => f.debug_tuple("Print").field(&expr.pretty()).finish(),
+            Stmt::VarDecl { var_name, expr } => f
                 .debug_tuple("VarDecl")
                 .field(&var_name)
                 .field(&expr.pretty())
                 .finish(),
-            Self::ReAssing { var_name, expr } => f
+            Stmt::ReAssing { var_name, expr } => f
                 .debug_tuple("ReAssign")
                 .field(&var_name)
                 .field(&expr.pretty())

@@ -13,6 +13,8 @@ pub enum ScanError {
     UnexpectedLexeme(char),
     UnterminatedString,
     ExpectedDigit,
+    ExpectedAnotherAmpersandSymbol,
+    ExpectedAnotherPipeSymbol,
 }
 
 impl ScanError {
@@ -26,6 +28,12 @@ impl ScanError {
             }
             ScanError::ExpectedDigit => {
                 eprintln!("[Scan Error]: Expected digit")
+            }
+            ScanError::ExpectedAnotherAmpersandSymbol => {
+                eprintln!("[Scan Error]: Expected another '&' after '&'")
+            }
+            ScanError::ExpectedAnotherPipeSymbol => {
+                eprintln!("[Scan Error]: Expected another '|' after '|'")
             }
         }
     }
@@ -70,6 +78,8 @@ impl<'a> Scanner<'a> {
         return match character {
             '(' => Some(Ok(TokenType::LeftParen)),
             ')' => Some(Ok(TokenType::RightParen)),
+            '{' => Some(Ok(TokenType::LeftBrace)),
+            '}' => Some(Ok(TokenType::RightBrace)),
             ',' => Some(Ok(TokenType::Comma)),
             '.' => Some(Ok(TokenType::Dot)),
             ';' => Some(Ok(TokenType::Semicolon)),
@@ -110,6 +120,20 @@ impl<'a> Scanner<'a> {
                     return Some(Ok(TokenType::Slash));
                 }
                 None
+            }
+            '&' => {
+                if self.match_current_char('&') {
+                    Some(Ok(TokenType::And))
+                } else {
+                    Some(Ok(TokenType::Equal))
+                }
+            }
+            '|' => {
+                if self.match_current_char('|') {
+                    Some(Ok(TokenType::Or))
+                } else {
+                    Some(Ok(TokenType::Equal))
+                }
             }
             '\n' => {
                 self.line += 1;
@@ -189,11 +213,7 @@ impl<'a> Scanner<'a> {
             .collect();
 
         let keywords: HashMap<String, TokenType> = HashMap::from([
-            ("then".to_string(), TokenType::Then),
             ("end".to_string(), TokenType::End),
-            ("do".to_string(), TokenType::Do),
-            ("and".to_string(), TokenType::And),
-            ("or".to_string(), TokenType::Or),
             ("struct".to_string(), TokenType::Struct),
             ("if".to_string(), TokenType::If),
             ("else".to_string(), TokenType::Else),
@@ -422,6 +442,8 @@ pub enum TokenType {
     // Single-character tokens.
     LeftParen,
     RightParen,
+    LeftBrace,
+    RightBrace,
     Comma,
     Dot,
     Minus,
@@ -450,9 +472,7 @@ pub enum TokenType {
 
     // keywords.
     Func,
-    Then,
     End,
-    Do,
     And,
     Or,
     Struct,
@@ -475,6 +495,8 @@ impl TokenType {
             // Single-character tokens.
             Self::LeftParen => "(",
             Self::RightParen => ")",
+            Self::LeftBrace => "{",
+            Self::RightBrace => "}",
             Self::Comma => ",",
             Self::Dot => ".",
             Self::Minus => "-",
@@ -501,11 +523,9 @@ impl TokenType {
 
             // Keywords.
             Self::Func => "func",
-            Self::Then => "then",
             Self::End => "end",
-            Self::Do => "do",
-            Self::And => "and",
-            Self::Or => "or",
+            Self::And => "&&",
+            Self::Or => "||",
             Self::Struct => "struct",
             Self::If => "if",
             Self::Else => "else",
