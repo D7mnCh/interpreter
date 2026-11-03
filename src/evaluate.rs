@@ -172,6 +172,7 @@ impl LoxValue {
                     (&left, &right),
                     (LoxValue::String(_), LoxValue::String(_),)
                         | (LoxValue::Number(_), LoxValue::Number(_))
+                        | (LoxValue::Bool(_), LoxValue::Bool(_))
                 ) {
                     return Ok(LoxValue::Bool(left == right));
                 }
