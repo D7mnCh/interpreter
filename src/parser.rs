@@ -87,20 +87,19 @@ enum ParseError {
 //     }
 // }
 
+// NOTE: bug if have an error at end of line and there's another line, self.get_line() is based on the other line
+//and not current line
 impl ParseError {
     fn at_which_line(&self, token: &Token) -> String {
+        dbg!(&token);
         let token_type = token.get_token_type();
         if token_type == TokenType::Eof {
-            format!(
-                "[Parse Error] Line [{}:{}] at end",
-                token.get_line(),
-                token.get_lexeme_pos()
-            )
+            format!("[Parse Error] Line {} at end", token.get_line(),)
         } else {
             format!(
                 "[Parse Error] Line [{}:{}]",
                 token.get_line(),
-                token.get_lexeme_pos(),
+                token.get_lexeme_pos_current_line(),
             )
         }
     }

@@ -69,6 +69,7 @@ impl<'a> Scanner<'a> {
     }
 
     // &mut needed to mute self.current_char_indx
+    // scan do change state of self so it's reasonable to accept &mut self
     // used Option to ignore some lexemes e.g '\n','//*', ...
     fn scan_tokens(&mut self) -> Option<Result<TokenType, ScanError>> {
         // i was scanning source with lines() method, i face a problem where if the lexeme is
@@ -136,8 +137,10 @@ impl<'a> Scanner<'a> {
                 }
             }
             '\n' => {
-                self.line += 1;
-                self.lexeme_pos_current_line = 0;
+                if !self.is_eof() {
+                    self.line += 1;
+                    self.lexeme_pos_current_line = 1;
+                }
                 None
             }
             c if c.is_whitespace() => None,
@@ -341,8 +344,9 @@ impl<'a> Scanner<'a> {
         self.current_char_indx >= self.source.len()
     }
 
-    // NOTE should have self.tokenize(&mut self) should push result of
-    //self.scan_tokens(&self) and not the latter cuz latter used only for scanning(no mutation)
+    // it is reasonable to accept &mut self, it is needed cuz of scan_tokens()
+    //and it is also reasonable self.tokens() to accept &mut self cuz it gonna
+    //to mutate state (i feel state is not correct word here)
     pub fn tokenize(&mut self) -> Vec<Token> {
         while !self.is_eof() {
             let start_lexeme_indx_prev = self.start_lexeme_indx;
@@ -352,10 +356,11 @@ impl<'a> Scanner<'a> {
             let Some(scan_result) = self.scan_tokens() else {
                 continue;
             };
-            let token_type = match scan_result {
+            let token_type = match scan_result
+                .inspect_err(|err| err.report(self.line, self.lexeme_pos_current_line))
+            {
                 Ok(token_type) => token_type,
-                Err(scan_error) => {
-                    scan_error.report(self.line, self.lexeme_pos_current_line);
+                Err(_) => {
                     continue;
                 }
             };
@@ -369,6 +374,7 @@ impl<'a> Scanner<'a> {
                 lexeme,
                 literal,
                 self.line,
+                // NOTE vas, how i self.lexeme_pos_current_line not resseting ?, it kept increasing
                 self.lexeme_pos_current_line,
             );
             self.tokens.push(token);
@@ -379,7 +385,7 @@ impl<'a> Scanner<'a> {
             String::new(),
             String::new(),
             self.line,
-            self.start_lexeme_indx,
+            self.lexeme_pos_current_line,
         );
         self.tokens.push(token);
 
@@ -394,7 +400,7 @@ pub struct Token {
     lexeme: String,
     literal: String,
     line: usize,
-    lexeme_pos: usize,
+    lexeme_pos_current_line: usize,
 }
 
 impl Token {
@@ -405,14 +411,14 @@ impl Token {
         lexeme: String,
         literal: String, // NOTE i think it should be generic type, not a String
         line: usize,
-        lexeme_pos: usize,
+        lexeme_pos_current_line: usize,
     ) -> Self {
         Self {
             token_type,
             lexeme,
             literal,
             line,
-            lexeme_pos,
+            lexeme_pos_current_line,
         }
     }
 
@@ -432,8 +438,8 @@ impl Token {
         self.line
     }
 
-    pub fn get_lexeme_pos(&self) -> usize {
-        self.lexeme_pos
+    pub fn get_lexeme_pos_current_line(&self) -> usize {
+        self.lexeme_pos_current_line
     }
 }
 
