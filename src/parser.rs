@@ -87,17 +87,17 @@ enum ParseError {
 //     }
 // }
 
-// NOTE: bug if have an error at end of line and there's another line, self.get_line() is based on the other line
-//and not current line
+// NOTE: bug if having an error at end of line and there's another line, self.get_line() is based on the other line
+// and not current line.
+// after line 1, get_lexeme_pos_current_line +1
 impl ParseError {
     fn at_which_line(&self, token: &Token) -> String {
-        dbg!(&token);
         let token_type = token.get_token_type();
         if token_type == TokenType::Eof {
-            format!("[Parse Error] Line {} at end", token.get_line(),)
+            format!("Line {} at end", token.get_line(),)
         } else {
             format!(
-                "[Parse Error] Line [{}:{}]",
+                "Line [{}:{}]",
                 token.get_line(),
                 token.get_lexeme_pos_current_line(),
             )
@@ -107,33 +107,35 @@ impl ParseError {
     fn report(&self) {
         match self {
             Self::ExpectedNum { found } => eprintln!(
-                "{}: Expected a Number literal after expression, found \"{}\"",
+                "[Parse Error] {}: Expected a Number literal after expression, found \"{}\"",
                 self.at_which_line(&found),
                 found.get_lexeme()
             ),
             Self::ExpectedToken { expected, found } => eprintln!(
-                "{}: Expected '{}' after expression, found '{}'",
+                "[Parse Error] {}: Expected '{}' after expression, found '{}'",
                 self.at_which_line(&found),
                 expected.as_str(),
                 found.get_lexeme()
             ),
             Self::ExpectedExpr { found } => eprintln!(
-                "{} Expected expr, found \"{}\"",
+                "[Parse Error] {} Expected expr, found \"{}\"",
                 self.at_which_line(&found),
                 found.get_lexeme()
             ),
-            Self::ExpectedSemicolon { found } => eprintln!(
-                "{} Expected ';', found \"{}\"",
-                self.at_which_line(&found),
-                found.get_lexeme()
-            ),
+            Self::ExpectedSemicolon { found } => {
+                eprintln!(
+                    "[Parse Error] line {}, Expected ';' after \"{}\" ",
+                    found.get_line(),
+                    found.get_lexeme()
+                )
+            }
             Self::ExpectedIdentifier { found } => eprintln!(
-                "{} Expected \"identifier\", found \"{}\"",
+                "[Parse Error] {} Expected \"identifier\", found \"{}\"",
                 self.at_which_line(&found),
                 found.get_lexeme()
             ),
             Self::ExpectedEqualAfterIdentifier { found } => eprintln!(
-                "{} Expected \"=\" after identifier, found \"{}\"\
+                "[Parse Error] {} Expected \"=\" after identifier, found \"{}\"\
                 NOTE: git it a value",
                 self.at_which_line(&found),
                 found.get_lexeme()
@@ -257,7 +259,7 @@ impl Parser {
 
         if !self.match_current_token_type_next(&[TokenType::Semicolon]) {
             return Err(ParseError::ExpectedSemicolon {
-                found: self.peek_current_token(),
+                found: self.prev_token(),
             });
         }
 
@@ -290,7 +292,7 @@ impl Parser {
 
         if !self.match_current_token_type_next(&[TokenType::Semicolon]) {
             return Err(ParseError::ExpectedSemicolon {
-                found: self.peek_current_token(),
+                found: self.prev_token(),
             });
         }
 
@@ -301,7 +303,7 @@ impl Parser {
         let expr = self.expression()?;
         if !self.match_current_token_type_next(&[TokenType::Semicolon]) {
             return Err(ParseError::ExpectedSemicolon {
-                found: self.peek_current_token(),
+                found: self.prev_token(),
             });
         }
 
@@ -312,7 +314,7 @@ impl Parser {
         let expr = self.expression()?;
         if !self.match_current_token_type_next(&[TokenType::Semicolon]) {
             return Err(ParseError::ExpectedSemicolon {
-                found: self.peek_current_token(),
+                found: self.prev_token(),
             });
         }
 

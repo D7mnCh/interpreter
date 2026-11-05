@@ -140,6 +140,10 @@ impl<'a> Scanner<'a> {
                 if !self.is_eof() {
                     self.line += 1;
                     self.lexeme_pos_current_line = 1;
+                    // after new line, self.start_lexeme_indx - start_lexeme_indx_prev == 1, so
+                    // self.lexeme_pos_current_line += self.start_lexeme_indx - start_lexeme_indx_prev
+                    // == 2 instead of 1.
+                    self.start_lexeme_indx += 1;
                 }
                 None
             }
@@ -185,7 +189,7 @@ impl<'a> Scanner<'a> {
             while self.peek_current() != '*' && self.peek_next() != '/' {
                 if self.peek_current() == '\n' {
                     self.line += 1;
-                    self.lexeme_pos_current_line = 0;
+                    self.lexeme_pos_current_line = 1;
                 }
                 let _ = self.next_char();
             }
@@ -314,7 +318,7 @@ impl<'a> Scanner<'a> {
         return self.source[self.current_char_indx + 1];
     }
 
-    // the returned char is the current character before increament current_char_indx
+    // the returned char is the current character before increment current_char_indx
     fn next_char(&mut self) -> char {
         let character = self.source[self.current_char_indx];
         self.current_char_indx += 1;
@@ -374,7 +378,6 @@ impl<'a> Scanner<'a> {
                 lexeme,
                 literal,
                 self.line,
-                // NOTE vas, how i self.lexeme_pos_current_line not resseting ?, it kept increasing
                 self.lexeme_pos_current_line,
             );
             self.tokens.push(token);
@@ -389,7 +392,8 @@ impl<'a> Scanner<'a> {
         );
         self.tokens.push(token);
 
-        return self.tokens.clone(); // to visualize/debugging
+        // to visualize/debugging
+        return self.tokens.clone();
     }
 }
 
